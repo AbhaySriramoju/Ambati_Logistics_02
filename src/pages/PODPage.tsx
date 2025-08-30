@@ -1,0 +1,198 @@
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+
+// Hardcoded shipment data for demo
+const MOCK_SHIPMENT = {
+  tracking_number: "1234567890",
+  recipient_name: "John Doe",
+  delivery_address: "123 Main St, Cityville, State, 123456, Country",
+  shipping_method: "Express",
+  expected_delivery_date: "2025-07-20",
+};
+
+const PODPage = () => {
+  const [session, setSession] = useState<any>(null);
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [shipment, setShipment] = useState<any>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check for session
+    const sess = localStorage.getItem("pod_session");
+    if (!sess) {
+      navigate("/pod-login");
+    } else {
+      setSession(JSON.parse(sess));
+    }
+  }, [navigate]);
+
+  // Simulate shipment fetch
+  const handleFetchShipment = () => {
+    setError("");
+    setSuccess("");
+    if (trackingNumber === MOCK_SHIPMENT.tracking_number) {
+      setShipment(MOCK_SHIPMENT);
+    } else {
+      setShipment(null);
+      setError("Tracking number not found or already delivered.");
+    }
+  };
+
+  // Handle image selection and preview
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // For demo, just preview, no compression
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!shipment) {
+      setError("Please enter a valid tracking number and fetch shipment.");
+      return;
+    }
+    if (!image) {
+      setError("Please upload a delivery photo.");
+      return;
+    }
+    // Simulate upload and submission
+    setTimeout(() => {
+      setSuccess("Proof of Delivery submitted successfully!");
+      setTrackingNumber("");
+      setShipment(null);
+      setImage(null);
+      setImagePreview("");
+      setNotes("");
+    }, 1000);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("pod_session");
+    navigate("/pod-login");
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-blue-50 via-white to-blue-100 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-blue-100 mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-blue-700">Proof of Delivery</h2>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-blue-500 hover:underline"
+          >
+            Logout
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Section 1: Tracking Number */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tracking Number
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                className="flex-1 border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter tracking number"
+              />
+              <button
+                type="button"
+                onClick={handleFetchShipment}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700"
+              >
+                Fetch
+              </button>
+            </div>
+          </div>
+          {/* Section 2: Shipment Details */}
+          {shipment && (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+              <div className="mb-1">
+                <span className="font-medium">Recipient:</span>{" "}
+                {shipment.recipient_name}
+              </div>
+              <div className="mb-1">
+                <span className="font-medium">Address:</span>{" "}
+                {shipment.delivery_address}
+              </div>
+              <div className="mb-1">
+                <span className="font-medium">Shipping Method:</span>{" "}
+                {shipment.shipping_method}
+              </div>
+              <div>
+                <span className="font-medium">Expected Delivery:</span>{" "}
+                {shipment.expected_delivery_date}
+              </div>
+            </div>
+          )}
+          {/* Section 3: Upload Proof of Delivery */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Upload Delivery Photo
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={fileInputRef}
+              onChange={handleImageChange}
+              className="block w-full text-sm text-gray-500"
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full max-h-48 object-contain rounded-lg border"
+                />
+              </div>
+            )}
+          </div>
+          {/* Section 4: Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Delivery Notes (optional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={2}
+              placeholder="Enter any notes about the delivery..."
+            />
+          </div>
+          {/* Section 5: Submit */}
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {success && (
+            <div className="text-green-600 text-sm font-semibold">
+              {success}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition text-lg"
+          >
+            Submit POD
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default PODPage;

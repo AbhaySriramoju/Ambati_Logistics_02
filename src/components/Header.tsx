@@ -24,24 +24,17 @@ export default function Header({ isLoggedIn, onLogout }: any) {
     <header className="bg-white shadow-md sticky top-0 z-50 w-full">
       <nav className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
-          {isLoggedIn ? (
-            <div className="flex items-center space-x-2 cursor-default">
-              <img src="/assets/favicon.png" alt="Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-800">
-                AMBATI LOGISTICS
-              </span>
-            </div>
-          ) : (
-            <Link to="/" className="flex items-center space-x-2">
-              <img src="/assets/favicon.png" alt="Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-800">
-                AMBATI LOGISTICS
-              </span>
-            </Link>
-          )}
+          <Link to="/" className="flex items-center space-x-2">
+            <img src="/assets/favicon.png" alt="Logo" className="h-8 w-8" />
+            <span className="text-xl font-bold text-gray-800">
+              AMBATI LOGISTICS
+            </span>
+          </Link>
 
           {/* Desktop */}
           <div className="hidden md:flex items-center space-x-6">
+            {/* Show public links only when not logged in */}
+
             {!isLoggedIn &&
               publicLinks.map((item) => (
                 <Link
