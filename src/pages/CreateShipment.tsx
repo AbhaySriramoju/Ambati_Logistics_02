@@ -116,6 +116,7 @@ const CreateShipment = () => {
         packageType: "Box",
       },
     ],
+    base_price: 0, // Add base_price to shipment form
     status: "Pending",
     pickupDate: new Date().toISOString().split("T")[0],
     shippingMethod: "Standard",
@@ -178,7 +179,7 @@ const CreateShipment = () => {
     field: keyof Address,
     value: string
   ) => {
-    setForm((prev) => ({
+    setForm((prev: any) => ({
       ...prev,
       [type]: {
         ...prev[type],
@@ -197,10 +198,13 @@ const CreateShipment = () => {
       ...newPackages[index],
       [field]: value,
     };
+    // Always recalculate base_price as the sum of all package values
+    const newBasePrice = newPackages.reduce((sum, pkg) => sum + (pkg.value || 0), 0);
     setForm((prev) => ({
       ...prev,
       packages: newPackages,
       totalWeight: calculateTotalWeight(newPackages),
+      base_price: newBasePrice,
     }));
   };
 
@@ -240,16 +244,16 @@ const CreateShipment = () => {
     }));
   };
 
+  // Unified submit handler for create and edit
   const handleSubmit = async () => {
-    // Inline validation
+    // ...existing validation code...
     const newErrors: {
       shipFrom?: Partial<Record<keyof Address, string>>;
       shipTo?: Partial<Record<keyof Address, string>>;
       packages?: Array<Partial<Record<keyof Package, string>>>;
     } = { shipFrom: {}, shipTo: {}, packages: [] };
     let hasError = false;
-
-    // Ship From validation
+    // ...existing validation code...
     if (!form.shipFrom.name.trim()) {
       newErrors.shipFrom!.name = "Full Name or Company Name is required.";
       hasError = true;
@@ -268,8 +272,6 @@ const CreateShipment = () => {
         hasError = true;
       }
     });
-
-    // Ship To validation
     if (!form.shipTo.name.trim()) {
       newErrors.shipTo!.name = "Full Name or Company Name is required.";
       hasError = true;
@@ -288,8 +290,6 @@ const CreateShipment = () => {
         hasError = true;
       }
     });
-
-    // Packages validation
     if (form.packages.length === 0) {
       newErrors.packages = [
         { description: "At least one package is required." },
@@ -313,7 +313,6 @@ const CreateShipment = () => {
         return pkgErrors;
       });
     }
-
     setErrors(newErrors);
     if (hasError) return;
 
@@ -330,11 +329,81 @@ const CreateShipment = () => {
       user_id = user?.id;
     } catch {}
 
-    // Defensive: convert empty string or undefined to null for DB
     function nullIfEmpty(val: any): any {
       return val === undefined || val === null || val === "" ? null : val;
     }
 
+    // If editing (form.id exists), call update endpoint
+    if (form.id) {
+      // Prepare packages for backend
+      const packagesPayload = form.packages.map(pkg => ({
+        description: pkg.description,
+        package_type: pkg.packageType,
+        weight: pkg.weight,
+        quantity: pkg.quantity,
+        length: pkg.length,
+        width: pkg.width,
+        height: pkg.height,
+        price: pkg.value,
+      }));
+      // Use 'id' instead of 'shipment_id' for the main shipment key
+      const shipmentData = {
+        id: form.id, // <-- changed from shipment_id
+        status: nullIfEmpty(form.status),
+        shipping_method: nullIfEmpty(form.shippingMethod),
+        notes: nullIfEmpty(form.notes),
+        create_date: nullIfEmpty(form.pickupDate),
+        estimated_delivery_date: nullIfEmpty(form.deliveryDate),
+        delivered_at: null, // You can set this if needed
+        base_price: form.base_price,
+        from_name_or_company: nullIfEmpty(form.shipFrom.name),
+        from_contact_number: nullIfEmpty(form.shipFrom.contactNumber),
+        from_email: nullIfEmpty(form.shipFrom.email),
+        from_street_address: nullIfEmpty(form.shipFrom.street),
+        from_city: nullIfEmpty(form.shipFrom.city),
+        from_state: nullIfEmpty(form.shipFrom.state),
+        from_postal_code: nullIfEmpty(form.shipFrom.postalCode),
+        from_country: nullIfEmpty(form.shipFrom.country),
+        to_name_or_company: nullIfEmpty(form.shipTo.name),
+        to_contact_number: nullIfEmpty(form.shipTo.contactNumber),
+        to_email: nullIfEmpty(form.shipTo.email),
+        to_street_address: nullIfEmpty(form.shipTo.street),
+        to_city: nullIfEmpty(form.shipTo.city),
+        to_state: nullIfEmpty(form.shipTo.state),
+        to_postal_code: nullIfEmpty(form.shipTo.postalCode),
+        to_country: nullIfEmpty(form.shipTo.country),
+        packages: packagesPayload,
+      };
+      // Call edge function
+      const token = localStorage.getItem("sb-access-token");
+      const response = await fetch(`/shipment-update/${form.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(shipmentData),
+      });
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        result = { error: 'Invalid JSON response' };
+      }
+      // Debug: log response and result
+      console.log('Update shipment response:', response);
+      console.log('Update shipment result:', result);
+      if (!response.ok) {
+        alert(result.error || "Failed to update shipment.");
+        return;
+      }
+      setBarcodeValue(form.id);
+      setErrors({});
+      navigate("/dashboard");
+      return;
+    }
+
+    // Otherwise, create new shipment (existing logic)
     const shipmentData = {
       status: nullIfEmpty(form.status),
       shipping_method: nullIfEmpty(form.shippingMethod),
@@ -359,15 +428,12 @@ const CreateShipment = () => {
       tracking_number: trackingNumberToSend,
       total_weight: form.totalWeight,
       client_code: nullIfEmpty(form.clientCode),
-      // Do NOT send create_date, let backend use created_at
-      created_at: getCurrentISTISOString(), // Store IST time for creation
-      ...(user_id ? { user_id } : {}), // Only add user_id if it exists in DB
+      created_at: getCurrentISTISOString(),
+      ...(user_id ? { user_id } : {}),
+      base_price: form.base_price,
     };
-
     // Debug: log data before sending
     console.log("shipmentData", shipmentData);
-
-    // Insert shipment
     const { data: shipment, error: shipmentError } = await import(
       "../lib/supabaseClient"
     ).then((mod) =>
@@ -377,12 +443,10 @@ const CreateShipment = () => {
       alert(shipmentError.message || "Failed to create shipment.");
       return;
     }
-
-    // Insert packages
     if (form.packages.length > 0) {
       const formattedPackages = form.packages.map((pkg) => ({
         shipment_id: shipment.id,
-        item_name: nullIfEmpty(pkg.description) || "Package", // Fix for NOT NULL constraint
+        item_name: nullIfEmpty(pkg.description) || "Package",
         description: nullIfEmpty(pkg.description),
         package_type: nullIfEmpty(pkg.packageType),
         weight_kg:
@@ -398,12 +462,11 @@ const CreateShipment = () => {
         height_cm:
           typeof pkg.height === "number" && pkg.height > 0 ? pkg.height : null,
         price_inr:
-          typeof pkg.value === "number" && pkg.value > 0 ? pkg.value : null,
+          typeof pkg.price === "number" && pkg.price > 0 ? pkg.price : null, // ✅ FIXED
       }));
 
       // Debug: log packages before sending
-      console.log("formattedPackages", formattedPackages);
-
+      // console.log("formattedPackages", formattedPackages);
       const { error: packageError } = await import(
         "../lib/supabaseClient"
       ).then((mod) =>
@@ -414,7 +477,6 @@ const CreateShipment = () => {
         return;
       }
     }
-
     setBarcodeValue(shipment.id);
     setErrors({});
     navigate("/dashboard");
@@ -1125,23 +1187,6 @@ const CreateShipment = () => {
                 <option value="Overnight">Overnight</option>
                 <option value="Freight">Freight</option>
               </select>
-              {form.shippingMethod && (
-                <div className="mt-4 p-4 border rounded bg-gray-50">
-                  <div className="mb-2 font-semibold">
-                    Shipping Cost: <span className="text-blue-700">₹{shippingCosts[form.shippingMethod] || 0}</span>
-                  </div>
-                  <button
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-semibold"
-                    type="button"
-                    onClick={() => {
-                      // Pass method and cost as query params
-                      navigate(`/shipment-payment?method=${encodeURIComponent(form.shippingMethod)}&cost=${shippingCosts[form.shippingMethod] || 0}`);
-                    }}
-                  >
-                    Pay Now
-                  </button>
-                </div>
-              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

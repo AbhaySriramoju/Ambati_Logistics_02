@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -8,12 +7,10 @@ interface PendingShipment {
   shipment_id: string;
   client_code: string;
   created_at: string;
-  from_name_or_company: string;
-  from_city: string;
-  to_name_or_company: string;
-  to_city: string;
-  total_weight: number;
-  status: string;
+  // base_price: number; // Removed because column does not exist
+  gst_amount: number;
+  final_amount: number;
+  invoice_status: string;
 }
 interface RaisedInvoice {
   id: string;
@@ -55,11 +52,8 @@ const ClientInvoicePage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, shipment_id, client_code, created_at, from_name_or_company, from_city, to_name_or_company, to_city, total_weight, status")
-        .eq("client_code", clientCode)
-        .eq("invoice_status", "pending")
-        .gte("created_at", `${selectedMonth}-01`)
-        .lte("created_at", `${selectedMonth}-31`)
+        .select("id, shipment_id, client_code, created_at, gst_amount, final_amount, invoice_status")
+        .ilike("client_code", clientCode.trim())
         .order("created_at", { ascending: true });
       if (error) throw error;
       setPendingShipments(data || []);
@@ -81,7 +75,7 @@ const ClientInvoicePage: React.FC = () => {
       const { data, error } = await supabase
         .from("invoices")
         .select("id, invoice_number, client_code, invoice_date, total_amount, status, shipments:shipments(*)")
-        .eq("client_code", clientCode)
+        .ilike("client_code", clientCode)
         .gte("invoice_date", `${selectedMonth}-01`)
         .lte("invoice_date", `${selectedMonth}-31`)
         .order("invoice_date", { ascending: false });
@@ -96,7 +90,6 @@ const ClientInvoicePage: React.FC = () => {
 
   // Totals calculation
   useEffect(() => {
-    const selected = pendingShipments.filter((s) => selectedShipments.includes(s.id));
     // No price/gst/total columns, so just count shipments and sum total_weight as a placeholder
     const base = 0;
     const gst = 0;
@@ -140,7 +133,7 @@ const ClientInvoicePage: React.FC = () => {
       const { data: lastInvoice, error: lastError } = await supabase
         .from("invoices")
         .select("invoice_number")
-        .eq("client_code", clientCode)
+        .ilike("client_code", clientCode)
         .gte("invoice_date", `${selectedMonth}-01`)
         .lte("invoice_date", `${selectedMonth}-31`)
         .order("invoice_number", { ascending: false })
@@ -194,7 +187,7 @@ const ClientInvoicePage: React.FC = () => {
               type="text"
               className="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-200"
               value={clientCode}
-              onChange={e => setClientCode(e.target.value.toUpperCase())}
+              onChange={e => setClientCode(e.target.value)}
               placeholder="e.g. P120"
             />
           </div>
@@ -234,13 +227,11 @@ const ClientInvoicePage: React.FC = () => {
               <div className="text-center text-blue-500 py-8">Loading...</div>
             ) : error ? (
               <div className="text-center text-red-500 py-8">{error}</div>
-            ) : pendingShipments.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">No pending shipments found for this client/month.</div>
             ) : (
               <>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm text-left whitespace-nowrap border rounded-lg mb-4">
-                    <thead className="bg-blue-50 text-gray-700">
+                    <thead className="bg-blue-50 text-blue-700 font-bold">
                       <tr>
                         <th className="px-4 py-3">
                           <input
@@ -251,42 +242,55 @@ const ClientInvoicePage: React.FC = () => {
                         </th>
                         <th className="px-4 py-3">Shipment ID</th>
                         <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">From</th>
-                        <th className="px-4 py-3">To</th>
-                        <th className="px-4 py-3">Weight (kg)</th>
+                        <th className="px-4 py-3">Base Price</th>
+                        <th className="px-4 py-3">GST Amount</th>
+                        <th className="px-4 py-3">Final Amount</th>
                         <th className="px-4 py-3">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingShipments.map((ship) => (
-                        <tr key={ship.id} className={`border-b ${selectedShipments.includes(ship.id) ? "bg-blue-50" : "hover:bg-gray-50"} transition`}>
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedShipments.includes(ship.id)}
-                              onChange={e => handleSelectShipment(ship.id, e.target.checked)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                          <td className="px-4 py-3">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                          <td className="px-4 py-3">{ship.from_name_or_company} ({ship.from_city})</td>
-                          <td className="px-4 py-3">{ship.to_name_or_company} ({ship.to_city})</td>
-                          <td className="px-4 py-3">{ship.total_weight}</td>
-                          <td className="px-4 py-3">{ship.status}</td>
+                      {pendingShipments.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center text-gray-400 py-8 bg-blue-50">No pending shipments found.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        pendingShipments.map((ship) => (
+                          <tr key={ship.id} className={`border-b ${selectedShipments.includes(ship.id) ? "bg-blue-50" : "hover:bg-gray-50"} transition`}>
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedShipments.includes(ship.id)}
+                                onChange={e => handleSelectShipment(ship.id, e.target.checked)}
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
+                            <td className="px-4 py-3">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                            <td className="px-4 py-3">N/A</td>
+                            <td className="px-4 py-3">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                            <td className="px-4 py-3">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                            <td className="px-4 py-3">{ship.invoice_status}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
                 {/* Totals Panel */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{selectedShipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Weight: <span className="text-blue-700">{pendingShipments.filter((s) => selectedShipments.includes(s.id)).reduce((sum, s) => sum + (s.total_weight || 0), 0)}</span></div>
+                  <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                  <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
+                  <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                 </div>
                 {/* Action Buttons */}
                 <div className="flex gap-4 mb-2">
                   <button
-                    className="bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
+                    onClick={() => { setSelectedShipments([]); setSelectAll(false); }}
+                    disabled={selectedShipments.length === 0}
+                  >Cancel</button>
+                  <button
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
                     onClick={handlePreview}
                     disabled={selectedShipments.length === 0 || loading}
                   >Preview Invoice</button>
@@ -295,11 +299,6 @@ const ClientInvoicePage: React.FC = () => {
                     onClick={handleRaiseInvoice}
                     disabled={selectedShipments.length === 0 || loading}
                   >Raise Invoice</button>
-                  <button
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
-                    onClick={() => { setSelectedShipments([]); setSelectAll(false); }}
-                    disabled={selectedShipments.length === 0}
-                  >Cancel</button>
                 </div>
               </>
             )}
@@ -314,32 +313,41 @@ const ClientInvoicePage: React.FC = () => {
                   <div className="mb-4 text-gray-700">Shipments: <span className="font-semibold">{previewData.shipments.length}</span></div>
                   <div className="overflow-x-auto mb-4">
                     <table className="min-w-full text-sm text-left border rounded-lg">
-                      <thead className="bg-blue-50 text-gray-700">
+                      <thead className="bg-blue-50 text-blue-700 font-bold">
                         <tr>
                           <th className="px-4 py-2">Shipment ID</th>
                           <th className="px-4 py-2">Date</th>
-                          <th className="px-4 py-2">From</th>
-                          <th className="px-4 py-2">To</th>
-                          <th className="px-4 py-2">Weight (kg)</th>
+                          <th className="px-4 py-2">Base Price</th>
+                          <th className="px-4 py-2">GST Amount</th>
+                          <th className="px-4 py-2">Final Amount</th>
                           <th className="px-4 py-2">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {previewData.shipments.map((ship) => (
-                          <tr key={ship.id}>
-                            <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                            <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                            <td className="px-4 py-2">{ship.from_name_or_company} ({ship.from_city})</td>
-                            <td className="px-4 py-2">{ship.to_name_or_company} ({ship.to_city})</td>
-                            <td className="px-4 py-2">{ship.total_weight}</td>
-                            <td className="px-4 py-2">{ship.status}</td>
+                        {previewData.shipments.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center text-gray-400 py-8 bg-blue-50">No pending shipments found.</td>
                           </tr>
-                        ))}
+                        ) : (
+                          previewData.shipments.map((ship) => (
+                            <tr key={ship.id}>
+                              <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
+                          <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                              <td className="px-4 py-2">N/A</td>
+                              <td className="px-4 py-2">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                              <td className="px-4 py-2">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                              <td className="px-4 py-2">{ship.invoice_status}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4">
-                    <div className="font-semibold text-gray-700">Total Weight: <span className="text-blue-700">{previewData.shipments.reduce((sum, s) => sum + (s.total_weight || 0), 0)}</span></div>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{previewData.shipments.length}</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
@@ -409,32 +417,41 @@ const ClientInvoicePage: React.FC = () => {
                   <div className="mb-4 text-gray-700">Status: <span className="font-semibold">{invoiceModalData.status}</span></div>
                   <div className="overflow-x-auto mb-4">
                     <table className="min-w-full text-sm text-left border rounded-lg">
-                      <thead className="bg-blue-50 text-gray-700">
+                      <thead className="bg-blue-50 text-blue-700 font-bold">
                         <tr>
                           <th className="px-4 py-2">Shipment ID</th>
                           <th className="px-4 py-2">Date</th>
-                          <th className="px-4 py-2">From</th>
-                          <th className="px-4 py-2">To</th>
-                          <th className="px-4 py-2">Weight (kg)</th>
+                          <th className="px-4 py-2">Base Price</th>
+                          <th className="px-4 py-2">GST Amount</th>
+                          <th className="px-4 py-2">Final Amount</th>
                           <th className="px-4 py-2">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {invoiceModalData.shipments.map((ship) => (
-                          <tr key={ship.id}>
-                            <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                            <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                            <td className="px-4 py-2">{ship.from_name_or_company} ({ship.from_city})</td>
-                            <td className="px-4 py-2">{ship.to_name_or_company} ({ship.to_city})</td>
-                            <td className="px-4 py-2">{ship.total_weight}</td>
-                            <td className="px-4 py-2">{ship.status}</td>
+                        {invoiceModalData.shipments.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center text-gray-400 py-8 bg-blue-50">No shipments found.</td>
                           </tr>
-                        ))}
+                        ) : (
+                          invoiceModalData.shipments.map((ship) => (
+                            <tr key={ship.id}>
+                              <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
+                              <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                              <td className="px-4 py-2">N/A</td>
+                              <td className="px-4 py-2">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                              <td className="px-4 py-2">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
+                              <td className="px-4 py-2">{ship.invoice_status}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4">
-                    <div className="font-semibold text-gray-700">Total Weight: <span className="text-blue-700">{invoiceModalData.shipments.reduce((sum, s) => sum + (s.total_weight || 0), 0)}</span></div>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{invoiceModalData.shipments.length}</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
