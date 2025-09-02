@@ -22,15 +22,9 @@ interface RaisedInvoice {
   shipments: PendingShipment[];
 }
 
-const getCurrentMonthYear = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-};
-
 const ClientInvoicePage: React.FC = () => {
   // State
   const [clientCode, setClientCode] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear());
   const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
   const [totals, setTotals] = useState({ base: 0, gst: 0, grand: 0 });
@@ -39,7 +33,7 @@ const ClientInvoicePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<null | { clientCode: string; month: string; shipments: PendingShipment[]; totals: typeof totals }>(null);
+  const [previewData, setPreviewData] = useState<null | { clientCode: string; shipments: PendingShipment[]; totals: typeof totals }>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceModalData, setInvoiceModalData] = useState<RaisedInvoice | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -76,8 +70,6 @@ const ClientInvoicePage: React.FC = () => {
         .from("invoices")
         .select("id, invoice_number, client_code, invoice_date, total_amount, status, shipments:shipments(*)")
         .ilike("client_code", clientCode)
-        .gte("invoice_date", `${selectedMonth}-01`)
-        .lte("invoice_date", `${selectedMonth}-31`)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
       setRaisedInvoices(data || []);
@@ -121,7 +113,7 @@ const ClientInvoicePage: React.FC = () => {
 
   const handlePreview = () => {
     const selected = pendingShipments.filter((s) => selectedShipments.includes(s.id));
-    setPreviewData({ clientCode, month: selectedMonth, shipments: selected, totals });
+    setPreviewData({ clientCode, shipments: selected, totals });
     setShowPreview(true);
   };
 
@@ -129,13 +121,11 @@ const ClientInvoicePage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Get latest invoice number for this client/month
+      // 1. Get latest invoice number for this client
       const { data: lastInvoice, error: lastError } = await supabase
         .from("invoices")
         .select("invoice_number")
         .ilike("client_code", clientCode)
-        .gte("invoice_date", `${selectedMonth}-01`)
-        .lte("invoice_date", `${selectedMonth}-31`)
         .order("invoice_number", { ascending: false })
         .limit(1);
       if (lastError) throw lastError;
@@ -144,7 +134,7 @@ const ClientInvoicePage: React.FC = () => {
         const lastNum = lastInvoice[0].invoice_number.split("-").pop();
         nextNumber = parseInt(lastNum, 10) + 1;
       }
-      const invoiceNumber = `${clientCode}-${selectedMonth.replace("-", "")}-${String(nextNumber).padStart(4, "0")}`;
+      const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(4, "0")}`;
       // 2. Create invoice record
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
@@ -189,16 +179,6 @@ const ClientInvoicePage: React.FC = () => {
               value={clientCode}
               onChange={e => setClientCode(e.target.value)}
               placeholder="e.g. P120"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Month & Year</label>
-            <input
-              type="month"
-              className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              max={getCurrentMonthYear()}
             />
           </div>
           <button
@@ -287,7 +267,6 @@ const ClientInvoicePage: React.FC = () => {
                   <button
                     className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
                     onClick={() => { setSelectedShipments([]); setSelectAll(false); }}
-                    disabled={selectedShipments.length === 0}
                   >Cancel</button>
                   <button
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
@@ -309,7 +288,6 @@ const ClientInvoicePage: React.FC = () => {
                   <button className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl" onClick={() => setShowPreview(false)}>&times;</button>
                   <h3 className="text-2xl font-bold text-blue-700 mb-4">Invoice Preview</h3>
                   <div className="mb-2 text-gray-700">Client Code: <span className="font-semibold">{previewData.clientCode}</span></div>
-                  <div className="mb-2 text-gray-700">Month: <span className="font-semibold">{previewData.month}</span></div>
                   <div className="mb-4 text-gray-700">Shipments: <span className="font-semibold">{previewData.shipments.length}</span></div>
                   <div className="overflow-x-auto mb-4">
                     <table className="min-w-full text-sm text-left border rounded-lg">
