@@ -174,14 +174,20 @@ const Dashboard = () => {
           : "";
         const packages = allPackages
           .filter((pkg) => pkg.shipment_id === row.id)
-          .map((pkg) => ({
+          .map((pkg, idx) => ({
             description: pkg.description || "",
             weight: pkg.weight_kg || 0,
             length: pkg.length_cm || 0,
             width: pkg.width_cm || 0,
             height: pkg.height_cm || 0,
             quantity: pkg.quantity || 1,
-        price: pkg.price_inr || 0,
+            // Always set the price of the first package from row.base_price if present, else fallback to pkg.price_inr
+            price:
+              idx === 0 && typeof row.base_price === "number"
+                ? row.base_price
+                : typeof pkg.price_inr === "number"
+                ? pkg.price_inr
+                : 0,
             packageType: pkg.package_type || "Box",
             readableShipmentId: row.shipment_id ? String(row.shipment_id) : "",
           }));
@@ -366,8 +372,19 @@ const Dashboard = () => {
     setShowModal(true);
     setIsEditing(true);
     setEditingIndex(index);
+    // Always set the first package's price from shipment.base_price if it exists, but do not disrupt other package fields
+    let updatedPackages = shipment.packages.map((pkg, i) => {
+      if (i === 0 && typeof (shipment as any).base_price === "number") {
+        return {
+          ...pkg,
+          price: (shipment as any).base_price,
+        };
+      }
+      return pkg;
+    });
     setForm({
       ...shipment,
+      packages: updatedPackages,
       pickupDate: shipment.pickupDate.split("T")[0],
       deliveryDate: shipment.deliveryDate?.split("T")[0],
       readableShipmentId: shipment.readableShipmentId || "",
@@ -473,6 +490,26 @@ const Dashboard = () => {
           console.error("Error updating shipments:", shipmentError.message);
           setLoading(false);
           return;
+        }
+        // Update all related packages in shipment_items
+        for (let i = 0; i < form.packages.length; i++) {
+          const pkg = form.packages[i];
+          // Find the corresponding package item in the DB by shipment_id and index (or add a unique id to each package if you have it)
+          // Here, we assume you have a unique id or can match by shipment_id and index
+          await supabase
+            .from("shipment_items")
+            .update({
+              description: pkg.description,
+              weight_kg: pkg.weight,
+              length_cm: pkg.length,
+              width_cm: pkg.width,
+              height_cm: pkg.height,
+              quantity: pkg.quantity,
+              price_inr: pkg.price,
+              package_type: pkg.packageType,
+            })
+            .eq("shipment_id", shipmentUpdateId)
+            .eq("index", i); // Make sure you have an 'index' or unique identifier for each package in shipment_items
         }
         // Insert a new update into shipment_updates (history table)
         const updateHistoryPayload: any = {
@@ -1357,132 +1394,138 @@ const Dashboard = () => {
                       Packages
                     </h4>
                     <div>
-                      {form.packages.map((pkg, index) => (
-                        <div key={index} className="mb-4 last:mb-0 border-b pb-4 last:border-b-0">
-                          <div className="flex justify-between items-center mb-2">
-                            <h5 className="text-sm font-medium text-gray-600">
-                              Package {index + 1}
-                            </h5>
+                      {form.packages.length === 0 ? (
+                        <div className="text-gray-400 italic">No packages added.</div>
+                      ) : (
+                        form.packages.map((pkg, index) => (
+                          <div key={index} className="mb-4 last:mb-0 border-b pb-4 last:border-b-0">
+                            <div className="flex justify-between items-center mb-2">
+                              <h5 className="text-sm font-medium text-gray-600">
+                                Package {index + 1}
+                              </h5>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Description
+                                </label>
+                                <input
+                                  type="text"
+                                  value={pkg.description}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "description", e.target.value)
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Package Type
+                                </label>
+                                <select
+                                  value={pkg.packageType}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "packageType", e.target.value)
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                >
+                                  <option value="Box">Box</option>
+                                  <option value="Envelope">Envelope</option>
+                                  <option value="Pallet">Pallet</option>
+                                  <option value="Crate">Crate</option>
+                                  <option value="Tube">Tube</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Weight (kg)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={pkg.weight}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "weight", parseFloat(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Quantity
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={pkg.quantity}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "quantity", parseInt(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Length (cm)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pkg.length}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "length", parseFloat(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Width (cm)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pkg.width}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "width", parseFloat(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Height (cm)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pkg.height}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "height", parseFloat(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Price (INR)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pkg.price}
+                                  onChange={(e) =>
+                                    handlePackageChange(index, "price", parseFloat(e.target.value))
+                                  }
+                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Description
-                              </label>
-                              <input
-                                type="text"
-                                value={pkg.description}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "description", e.target.value)
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Package Type
-                              </label>
-                              <select
-                                value={pkg.packageType}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "packageType", e.target.value)
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              >
-                                <option value="Box">Box</option>
-                                <option value="Envelope">Envelope</option>
-                                <option value="Pallet">Pallet</option>
-                                <option value="Tube">Tube</option>
-                                <option value="Other">Other</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Weight (kg)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={pkg.weight}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "weight", parseFloat(e.target.value))
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Quantity
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={pkg.quantity}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "quantity", parseInt(e.target.value))
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Length (cm)
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={pkg.length}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "length", parseFloat(e.target.value))
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Width (cm)
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={pkg.width}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "width", parseFloat(e.target.value))
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Height (cm)
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={pkg.height}
-                                onChange={(e) =>
-                                  handlePackageChange(index, "height", parseFloat(e.target.value))
-                                }
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Price (₹)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={typeof pkg.price === 'number' ? pkg.price : 0}
-                                onChange={e => handlePackageChange(index, "price", parseFloat(e.target.value))}
-                                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                   {/* Shipment Details Section */}
