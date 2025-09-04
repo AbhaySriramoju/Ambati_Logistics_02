@@ -39,6 +39,14 @@ const ClientInvoicePage: React.FC = () => {
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectAll, setSelectAll] = useState(true);
 
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   // Fetch pending shipments
   const fetchPendingShipments = async () => {
     setLoading(true);
@@ -141,6 +149,15 @@ const ClientInvoicePage: React.FC = () => {
   const handleRaiseInvoice = async () => {
     setLoading(true);
     setError(null);
+    // Filter out already-invoiced shipments
+    const eligibleShipments = pendingShipments.filter(
+      (s) => selectedShipments.includes(s.id) && (!s.invoice_status || s.invoice_status.toLowerCase() !== "raised")
+    );
+    if (eligibleShipments.length === 0) {
+      setToast({ type: "error", message: "Selected shipments have already been invoiced." });
+      setLoading(false);
+      return;
+    }
     try {
       // 1. Get latest invoice number for this client
       const { data: lastInvoice, error: lastError } = await supabase
@@ -163,17 +180,17 @@ const ClientInvoicePage: React.FC = () => {
           invoice_number: invoiceNumber,
           client_code: clientCode,
           invoice_date: new Date().toISOString().slice(0, 10),
-          total_amount: totals.grand,
+          total_amount: eligibleShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0),
           status: "raised",
         })
         .select();
       if (invoiceError) throw invoiceError;
       const invoiceId = invoiceData[0].id;
-      // 3. Link shipments to invoice
+      // 3. Link eligible shipments to invoice
       const { error: updateError } = await supabase
         .from("shipments")
         .update({ invoice_id: invoiceId, invoice_status: "raised" })
-        .in("id", selectedShipments);
+        .in("id", eligibleShipments.map(s => s.id));
       if (updateError) throw updateError;
       setToast({ type: "success", message: `Invoice ${invoiceNumber} raised successfully!` });
       setShowPreview(false);
