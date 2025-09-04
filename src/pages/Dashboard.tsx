@@ -176,11 +176,16 @@ const Dashboard = () => {
           .filter((pkg) => pkg.shipment_id === row.id)
           .map((pkg, idx) => ({
             description: pkg.description || "",
-            weight: pkg.weight_kg || 0,
-            length: pkg.length_cm || 0,
-            width: pkg.width_cm || 0,
-            height: pkg.height_cm || 0,
-            quantity: pkg.quantity || 1,
+            weight:
+              idx === 0 && typeof row.total_weight === "number"
+                ? row.total_weight
+                : typeof pkg.weight_kg === "number"
+                ? pkg.weight_kg
+                : 0,
+            length: typeof pkg.length_cm === "number" ? pkg.length_cm : 0,
+            width: typeof pkg.width_cm === "number" ? pkg.width_cm : 0,
+            height: typeof pkg.height_cm === "number" ? pkg.height_cm : 0,
+            quantity: typeof pkg.quantity === "number" ? pkg.quantity : 1,
             // Always set the price of the first package from row.base_price if present, else fallback to pkg.price_inr
             price:
               idx === 0 && typeof row.base_price === "number"
@@ -491,25 +496,40 @@ const Dashboard = () => {
           setLoading(false);
           return;
         }
+        // Fetch all related packages for this shipment
+        let allPackages: any[] = [];
+        const { data: pkgData, error: pkgError } = await supabase
+          .from("shipment_items")
+          .select("*")
+          .eq("shipment_id", shipmentUpdateId);
+        if (pkgError) {
+          console.error("Error fetching packages:", pkgError.message);
+          allPackages = [];
+        } else {
+          allPackages = pkgData || [];
+        }
         // Update all related packages in shipment_items
         for (let i = 0; i < form.packages.length; i++) {
           const pkg = form.packages[i];
           // Find the corresponding package item in the DB by shipment_id and index (or add a unique id to each package if you have it)
-          // Here, we assume you have a unique id or can match by shipment_id and index
-          await supabase
-            .from("shipment_items")
-            .update({
-              description: pkg.description,
-              weight_kg: pkg.weight,
-              length_cm: pkg.length,
-              width_cm: pkg.width,
-              height_cm: pkg.height,
-              quantity: pkg.quantity,
-              price_inr: pkg.price,
-              package_type: pkg.packageType,
-            })
-            .eq("shipment_id", shipmentUpdateId)
-            .eq("index", i); // Make sure you have an 'index' or unique identifier for each package in shipment_items
+          // Here, we assume you have a unique id for each package in shipment_items
+          const dbPkg = allPackages[i];
+          if (dbPkg && dbPkg.id) {
+            await supabase
+              .from("shipment_items")
+              .update({
+                description: pkg.description,
+                weight: pkg.weight,
+                weight_kg: pkg.weight,
+                length_cm: pkg.length,
+                width_cm: pkg.width,
+                height_cm: pkg.height,
+                quantity: pkg.quantity,
+                price_inr: pkg.price,
+                package_type: pkg.packageType,
+              })
+              .eq("id", dbPkg.id); // Use the unique id!
+          }
         }
         // Insert a new update into shipment_updates (history table)
         const updateHistoryPayload: any = {
