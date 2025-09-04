@@ -447,10 +447,11 @@ const Dashboard = () => {
 
   const handleSubmit = async () => {
     // Calculate total price (sum of all package values)
-    const totalPrice = form.packages.reduce(
-      (sum, pkg) => sum + (typeof pkg.price === 'number' ? pkg.price : 0),
+    let totalPrice = form.packages.reduce(
+      (sum, pkg) => sum + (typeof pkg.price === 'number' && pkg.price > 0 ? pkg.price : 0),
       0
     );
+    if (isNaN(totalPrice) || totalPrice < 0) totalPrice = 0;
 
     if (isEditing && editingIndex !== null) {
       setLoading(true);
@@ -478,7 +479,7 @@ const Dashboard = () => {
         to_postal_code: form.shipTo.postalCode,
         to_country: form.shipTo.country,
         total_weight: form.totalWeight,
-        base_price: totalPrice, // <-- Add this line to update price
+        base_price: totalPrice, // <-- Always a valid non-negative number
         created_at: form.createdAt
           ? new Date(form.createdAt).toISOString()
           : new Date().toISOString(),
@@ -584,7 +585,7 @@ const Dashboard = () => {
         to_postal_code: form.shipTo.postalCode,
         to_country: form.shipTo.country,
         total_weight: form.totalWeight,
-        base_price: totalPrice, // <-- Add this line to insert price
+        base_price: totalPrice, // <-- Always a valid non-negative number
         created_at: form.createdAt
           ? new Date(form.createdAt).toISOString()
           : new Date().toISOString(),
