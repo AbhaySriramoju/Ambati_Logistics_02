@@ -7,7 +7,7 @@ interface PendingShipment {
   shipment_id: string;
   client_code: string;
   created_at: string;
-  // base_price: number; // Removed because column does not exist
+  base_price: number; // <-- Added
   gst_amount: number;
   final_amount: number;
   invoice_status: string;
@@ -46,7 +46,7 @@ const ClientInvoicePage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, shipment_id, client_code, created_at, gst_amount, final_amount, invoice_status")
+        .select("id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status") // <-- Added base_price
         .ilike("client_code", clientCode.trim())
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -82,10 +82,16 @@ const ClientInvoicePage: React.FC = () => {
 
   // Totals calculation
   useEffect(() => {
-    // No price/gst/total columns, so just count shipments and sum total_weight as a placeholder
-    const base = 0;
-    const gst = 0;
-    const grand = 0;
+    // Calculate totals using base_price
+    const base = pendingShipments
+      .filter((s) => selectedShipments.includes(s.id))
+      .reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+    const gst = pendingShipments
+      .filter((s) => selectedShipments.includes(s.id))
+      .reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
+    const grand = pendingShipments
+      .filter((s) => selectedShipments.includes(s.id))
+      .reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
     setTotals({ base, gst, grand });
   }, [pendingShipments, selectedShipments]);
 
@@ -245,7 +251,7 @@ const ClientInvoicePage: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
                             <td className="px-4 py-3">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                            <td className="px-4 py-3">N/A</td>
+                            <td className="px-4 py-3">₹{typeof ship.base_price === "number" ? ship.base_price.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                             <td className="px-4 py-3">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                             <td className="px-4 py-3">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                             <td className="px-4 py-3">{ship.invoice_status}</td>
@@ -258,7 +264,7 @@ const ClientInvoicePage: React.FC = () => {
                 {/* Totals Panel */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{selectedShipments.length}</span></div>
-                  <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                  <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
                   <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
                   <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                 </div>
@@ -311,7 +317,7 @@ const ClientInvoicePage: React.FC = () => {
                             <tr key={ship.id}>
                               <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
                           <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                              <td className="px-4 py-2">N/A</td>
+                              <td className="px-4 py-2">₹{typeof ship.base_price === "number" ? ship.base_price.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                               <td className="px-4 py-2">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                               <td className="px-4 py-2">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                               <td className="px-4 py-2">{ship.invoice_status}</td>
@@ -323,7 +329,7 @@ const ClientInvoicePage: React.FC = () => {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{previewData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{previewData.totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
                     <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
                     <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                   </div>
@@ -415,7 +421,7 @@ const ClientInvoicePage: React.FC = () => {
                             <tr key={ship.id}>
                               <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
                               <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                              <td className="px-4 py-2">N/A</td>
+                              <td className="px-4 py-2">₹{typeof ship.base_price === "number" ? ship.base_price.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                               <td className="px-4 py-2">₹{ship.gst_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                               <td className="px-4 py-2">₹{ship.final_amount?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? "0.00"}</td>
                               <td className="px-4 py-2">{ship.invoice_status}</td>
@@ -427,7 +433,7 @@ const ClientInvoicePage: React.FC = () => {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{invoiceModalData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹0.00</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
                     <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹0.00</span></div>
                     <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹0.00</span></div>
                   </div>
