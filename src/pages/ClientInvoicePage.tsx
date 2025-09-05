@@ -173,14 +173,19 @@ const ClientInvoicePage: React.FC = () => {
         nextNumber = parseInt(lastNum, 10) + 1;
       }
       const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(4, "0")}`;
-      // 2. Create invoice record
+      // 2. Create invoice record with correct column mapping
+      const totalBase = eligibleShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+      const totalGst = eligibleShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : +(s.base_price * 0.18)), 0);
+      const totalAmount = eligibleShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : +(s.base_price * 1.18)), 0);
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
           invoice_number: invoiceNumber,
           client_code: clientCode,
           invoice_date: new Date().toISOString().slice(0, 10),
-          total_amount: eligibleShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0),
+          total_base: totalBase,      // <-- maps to Total Base Price
+          total_gst: totalGst,        // <-- maps to Total GST
+          total_amount: totalAmount,  // <-- maps to Grand Total
           status: "raised",
         })
         .select();
