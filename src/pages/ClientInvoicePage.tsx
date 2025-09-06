@@ -39,6 +39,8 @@ const ClientInvoicePage: React.FC = () => {
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectAll, setSelectAll] = useState(true);
 
+  const MAX_PRICE = 100000000; // ₹10 crore
+
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
     if (toast) {
@@ -47,6 +49,9 @@ const ClientInvoicePage: React.FC = () => {
     }
   }, [toast]);
 
+  // Filter helper for valid shipments
+  const filterValidShipments = (shipments: PendingShipment[]) => shipments.filter(s => typeof s.base_price === "number" && s.base_price >= 0 && s.base_price <= MAX_PRICE);
+
   // Fetch pending shipments
   const fetchPendingShipments = async () => {
     setLoading(true);
@@ -54,13 +59,19 @@ const ClientInvoicePage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status") // <-- Added base_price
+        .select("id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status")
         .ilike("client_code", clientCode.trim())
         .order("created_at", { ascending: true });
       if (error) throw error;
-      setPendingShipments(data || []);
-      setSelectedShipments((data || []).map((s: any) => s.id));
+      // Filter out invalid shipments
+      const valid = filterValidShipments(data || []);
+      setPendingShipments(valid);
+      setSelectedShipments(valid.map((s: any) => s.id));
       setSelectAll(true);
+      // Show warning if any excluded
+      if ((data || []).length > valid.length) {
+        setToast({ type: "error", message: "Some shipments were excluded due to unrealistically large price (above ₹10 crore)." });
+      }
     } catch (err: any) {
       setError(err.message || "Failed to fetch shipments");
       setPendingShipments([]);
@@ -80,7 +91,12 @@ const ClientInvoicePage: React.FC = () => {
         .ilike("client_code", clientCode)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
-      setRaisedInvoices(data || []);
+      // Filter out invalid shipments in each invoice
+      const filteredInvoices = (data || []).map(inv => ({
+        ...inv,
+        shipments: filterValidShipments(inv.shipments || [])
+      }));
+      setRaisedInvoices(filteredInvoices);
     } catch (err: any) {
       setError(err.message || "Failed to fetch invoices");
       setRaisedInvoices([]);
@@ -88,16 +104,19 @@ const ClientInvoicePage: React.FC = () => {
     setLoading(false);
   };
 
+  // Filter out shipments with base_price above MAX_PRICE
+  const validPendingShipments = pendingShipments.filter(s => typeof s.base_price === "number" && s.base_price >= 0 && s.base_price <= MAX_PRICE);
+  const invalidShipments = pendingShipments.filter(s => typeof s.base_price === "number" && s.base_price > MAX_PRICE);
+
   // Totals calculation
   useEffect(() => {
-    // Calculate GST and final amounts for each shipment (in-memory, do not mutate original state)
-    const updatedShipments = pendingShipments.map((s) => {
+    // Only use valid shipments for totals
+    const updatedShipments = filterValidShipments(pendingShipments).map((s) => {
       const base = typeof s.base_price === "number" ? s.base_price : 0;
       const gst = +(base * 0.18).toFixed(2);
       const final = +(base + gst).toFixed(2);
       return { ...s, gst_amount: gst, final_amount: final };
     });
-    // Calculate totals using updated values
     const base = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
       .reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
@@ -141,7 +160,8 @@ const ClientInvoicePage: React.FC = () => {
   };
 
   const handlePreview = () => {
-    const selected = pendingShipments.filter((s) => selectedShipments.includes(s.id));
+    // Only show valid shipments in preview
+    const selected = filterValidShipments(pendingShipments).filter((s) => selectedShipments.includes(s.id));
     setPreviewData({ clientCode, shipments: selected, totals });
     setShowPreview(true);
   };
@@ -149,12 +169,22 @@ const ClientInvoicePage: React.FC = () => {
   const handleRaiseInvoice = async () => {
     setLoading(true);
     setError(null);
-    // Filter out already-invoiced shipments
-    const eligibleShipments = pendingShipments.filter(
+    // Filter out already-invoiced shipments and invalid price
+    const eligibleShipments = filterValidShipments(pendingShipments).filter(
       (s) => selectedShipments.includes(s.id) && (!s.invoice_status || s.invoice_status.toLowerCase() !== "raised")
     );
-    if (eligibleShipments.length === 0) {
-      setToast({ type: "error", message: "Selected shipments have already been invoiced." });
+    // Sanitize numeric fields to prevent overflow
+    const sanitizedShipments = eligibleShipments.map(s => {
+      let base = typeof s.base_price === "number" ? s.base_price : 0;
+      // Supabase Postgres NUMERIC max is ~1e+131, but let's use a safe upper limit for business logic
+      // Set to zero if negative, NaN, or above 9999999999 (10 billion)
+      if (base < 0 || isNaN(base) || base > MAX_PRICE) base = 0;
+      const gst = +(base * 0.18).toFixed(2);
+      const final = +(base + gst).toFixed(2);
+      return { ...s, base_price: base, gst_amount: gst, final_amount: final };
+    });
+    if (sanitizedShipments.length === 0) {
+      setToast({ type: "error", message: "Selected shipments have already been invoiced or have invalid price." });
       setLoading(false);
       return;
     }
@@ -174,9 +204,9 @@ const ClientInvoicePage: React.FC = () => {
       }
       const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(4, "0")}`;
       // 2. Create invoice record with correct column mapping
-      const totalBase = eligibleShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
-      const totalGst = eligibleShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : +(s.base_price * 0.18)), 0);
-      const totalAmount = eligibleShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : +(s.base_price * 1.18)), 0);
+      const totalBase = sanitizedShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+      const totalGst = sanitizedShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
+      const totalAmount = sanitizedShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
@@ -195,7 +225,7 @@ const ClientInvoicePage: React.FC = () => {
       const { error: updateError } = await supabase
         .from("shipments")
         .update({ invoice_id: invoiceId, invoice_status: "raised", invoice_number: invoiceNumber })
-        .in("id", eligibleShipments.map(s => s.id));
+        .in("id", sanitizedShipments.map(s => s.id));
       if (updateError) throw updateError;
       setToast({ type: "success", message: `Invoice ${invoiceNumber} raised successfully!` });
       setShowPreview(false);
@@ -252,6 +282,12 @@ const ClientInvoicePage: React.FC = () => {
               <div className="text-center text-red-500 py-8">{error}</div>
             ) : (
               <>
+                {/* Warning for invalid shipments */}
+                {invalidShipments.length > 0 && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 rounded-lg p-3 mb-4 font-semibold">
+                    Warning: {invalidShipments.length} shipment(s) have unrealistically large base price (&gt; ₹{MAX_PRICE.toLocaleString("en-IN")}) and are excluded from totals and invoice creation.
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm text-left whitespace-nowrap border rounded-lg mb-4">
                     <thead className="bg-blue-50 text-blue-700 font-bold">
@@ -272,12 +308,12 @@ const ClientInvoicePage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingShipments.length === 0 ? (
+                      {validPendingShipments.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center text-gray-400 py-8 bg-blue-50">No pending shipments found.</td>
+                          <td colSpan={7} className="text-center text-gray-400 py-8 bg-blue-50">No valid pending shipments found.</td>
                         </tr>
                       ) : (
-                        pendingShipments.map((ship) => {
+                        validPendingShipments.map((ship) => {
                           const base = typeof ship.base_price === "number" ? ship.base_price : 0;
                           const gst = +(base * 0.18).toFixed(2);
                           const final = +(base + gst).toFixed(2);
@@ -363,10 +399,10 @@ const ClientInvoicePage: React.FC = () => {
                               <tr key={ship.id}>
                                 <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
                                 <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
                               </tr>
                             );
                           })
@@ -376,9 +412,9 @@ const ClientInvoicePage: React.FC = () => {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{previewData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{previewData.totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹{previewData.totals.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹{previewData.totals.grand.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.grand.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
@@ -466,16 +502,16 @@ const ClientInvoicePage: React.FC = () => {
                         ) : (
                           invoiceModalData.shipments.map((ship) => {
                             const base = typeof ship.base_price === "number" ? ship.base_price : 0;
-                            const gst = +(base * 0.18).toFixed(2);
-                            const final = +(base + gst).toFixed(2);
+                            const gst = typeof ship.gst_amount === "number" && ship.gst_amount > 0 ? ship.gst_amount : +(base * 0.18).toFixed(2);
+                            const final = typeof ship.final_amount === "number" && ship.final_amount > 0 ? ship.final_amount : +(base + gst).toFixed(2);
                             return (
                               <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 font-mono max-w-[120px] truncate">{ship.shipment_id || ship.id.slice(0, 8)}</td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
                               </tr>
                             );
                           })
@@ -485,9 +521,18 @@ const ClientInvoicePage: React.FC = () => {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{invoiceModalData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => {
+                      const base = typeof s.base_price === "number" ? s.base_price : 0;
+                      const gst = typeof s.gst_amount === "number" && s.gst_amount > 0 ? s.gst_amount : +(base * 0.18).toFixed(2);
+                      return sum + gst;
+                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => {
+                      const base = typeof s.base_price === "number" ? s.base_price : 0;
+                      const gst = typeof s.gst_amount === "number" && s.gst_amount > 0 ? s.gst_amount : +(base * 0.18).toFixed(2);
+                      const final = typeof s.final_amount === "number" && s.final_amount > 0 ? s.final_amount : +(base + gst).toFixed(2);
+                      return sum + final;
+                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
