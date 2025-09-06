@@ -191,10 +191,10 @@ const ClientInvoicePage: React.FC = () => {
         .select();
       if (invoiceError) throw invoiceError;
       const invoiceId = invoiceData[0].id;
-      // 3. Link eligible shipments to invoice
+      // 3. Link eligible shipments to invoice and update invoice_number
       const { error: updateError } = await supabase
         .from("shipments")
-        .update({ invoice_id: invoiceId, invoice_status: "raised" })
+        .update({ invoice_id: invoiceId, invoice_status: "raised", invoice_number: invoiceNumber })
         .in("id", eligibleShipments.map(s => s.id));
       if (updateError) throw updateError;
       setToast({ type: "success", message: `Invoice ${invoiceNumber} raised successfully!` });
