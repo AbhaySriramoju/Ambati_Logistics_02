@@ -39,6 +39,10 @@ const ClientInvoicePage: React.FC = () => {
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectAll, setSelectAll] = useState(true);
 
+  // Add state for error modal
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorModalMsg, setErrorModalMsg] = useState("");
+
   const MAX_PRICE = 100000000; // ₹10 crore
 
   // Auto-dismiss toast after 3 seconds
@@ -73,7 +77,16 @@ const ClientInvoicePage: React.FC = () => {
         setToast({ type: "error", message: "Some shipments were excluded due to unrealistically large price (above ₹10 crore)." });
       }
     } catch (err: any) {
-      setError(err.message || "Failed to fetch shipments");
+      let msg = err.message || "Failed to fetch shipments";
+      if (
+        msg.includes("violates check constraint") ||
+        msg.includes("shipments_price_check")
+      ) {
+        msg = "Base price exceeds allowed limit (₹10 crore). Please check your package prices.";
+        setErrorModalMsg(msg);
+        setShowErrorModal(true);
+      }
+      setError(msg);
       setPendingShipments([]);
       setSelectedShipments([]);
     }
@@ -544,6 +557,19 @@ const ClientInvoicePage: React.FC = () => {
               </div>
             )}
           </>
+        )}
+        {/* Error Modal */}
+        {showErrorModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-red-400 relative">
+              <button className="absolute top-3 right-3 text-gray-400 hover:text-red-600 text-2xl" onClick={() => setShowErrorModal(false)}>&times;</button>
+              <h3 className="text-xl font-bold text-red-700 mb-4">Error</h3>
+              <div className="mb-4 text-red-700 font-semibold">{errorModalMsg}</div>
+              <div className="flex justify-end">
+                <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold shadow transition text-lg" onClick={() => setShowErrorModal(false)}>OK</button>
+              </div>
+            </div>
+          </div>
         )}
         {/* Toast */}
         {toast && (

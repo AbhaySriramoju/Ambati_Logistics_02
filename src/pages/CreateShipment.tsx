@@ -244,8 +244,14 @@ const CreateShipment = () => {
     }));
   };
 
+  // Add error state for submission
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorModalMsg, setErrorModalMsg] = useState("");
+
   // Unified submit handler for create and edit
   const handleSubmit = async () => {
+    setSubmitError(null); // Reset error before submit
     // ...existing validation code...
     const newErrors: {
       shipFrom?: Partial<Record<keyof Address, string>>;
@@ -394,7 +400,14 @@ const CreateShipment = () => {
       console.log('Update shipment response:', response);
       console.log('Update shipment result:', result);
       if (!response.ok) {
-        alert(result.error || "Failed to update shipment.");
+        let msg = result.error || "Failed to update shipment.";
+        if (
+          msg.includes("violates check constraint") ||
+          msg.includes("shipments_price_check")
+        ) {
+          msg = "Please, Enter the price.";
+        }
+        setSubmitError(msg);
         return;
       }
       setBarcodeValue(form.id);
@@ -440,7 +453,16 @@ const CreateShipment = () => {
       mod.supabase.from("shipments").insert([shipmentData]).select().single()
     );
     if (shipmentError) {
-      alert(shipmentError.message || "Failed to create shipment.");
+      let msg = shipmentError.message || "Failed to create shipment.";
+      if (
+        msg.includes("violates check constraint") ||
+        msg.includes("shipments_price_check")
+      ) {
+        msg = "Please, Enter the price";
+        setErrorModalMsg(msg);
+        setShowErrorModal(true);
+      }
+      setSubmitError(msg);
       return;
     }
     if (form.packages.length > 0) {
@@ -473,7 +495,8 @@ const CreateShipment = () => {
         mod.supabase.from("shipment_items").insert(formattedPackages)
       );
       if (packageError) {
-        alert(packageError.message || "Failed to add packages.");
+        let msg = packageError.message || "Failed to add packages.";
+        setSubmitError(msg);
         return;
       }
     }
@@ -516,6 +539,12 @@ const CreateShipment = () => {
         Back
       </button>
       <div className="bg-white rounded-2xl w-full max-w-2xl p-10 space-y-8 mt-12 mb-12 shadow-2xl border border-blue-100">
+        {/* Show submit error above form */}
+        {submitError && (
+          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 rounded-lg p-3 font-semibold">
+            {submitError}
+          </div>
+        )}
         {/* Client Code Dropdown (dynamic, always present) */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1268,6 +1297,18 @@ const CreateShipment = () => {
             >
               Print Shipment Label
             </button>
+          </div>
+        )}
+        {showErrorModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-red-400 relative">
+              <button className="absolute top-3 right-3 text-gray-400 hover:text-red-600 text-2xl" onClick={() => setShowErrorModal(false)}>&times;</button>
+              <h3 className="text-xl font-bold text-red-700 mb-4">Error</h3>
+              <div className="mb-4 text-red-700 font-semibold">{errorModalMsg}</div>
+              <div className="flex justify-end">
+                <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold shadow transition text-lg" onClick={() => setShowErrorModal(false)}>OK</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
