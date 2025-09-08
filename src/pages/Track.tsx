@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
-import { Package, Plus } from "lucide-react";
+import { Package } from "lucide-react";
 
 export default function Track() {
   const [trackingInput, setTrackingInput] = useState("");
@@ -39,13 +39,6 @@ export default function Track() {
           >
             Track Shipment
           </button>
-          <Link
-            to="/create-shipment"
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Shipment
-          </Link>
         </div>
 
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
