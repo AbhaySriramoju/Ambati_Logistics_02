@@ -122,7 +122,7 @@ const PODPage = () => {
           .insert({
             shipment_id: shipmentId,
             image_url: imageUrl,
-            notes: notes || null,
+            delivery_notes: notes || null, // changed from notes to delivery_notes
           });
         if (insertError) {
           setError("Failed to save proof: " + insertError.message);
@@ -161,7 +161,7 @@ const PODPage = () => {
           .update({
             status: "Returned",
             delivery_notes: notes,
-            returned_at: new Date().toISOString(),
+            // returned_at: new Date().toISOString(),
           })
           .eq("id", shipmentId);
         if (updateError) {
