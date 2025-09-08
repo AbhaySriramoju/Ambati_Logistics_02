@@ -71,7 +71,6 @@ const Dashboard = () => {
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [shipments, setShipments] = useState<Shipment[]>([]);
-  const [registeredClientsCount, setRegisteredClientsCount] = useState(0);
 
   // Shipment type/interface update to include createDate
   // If Shipment is imported from types, update there as well
@@ -678,20 +677,6 @@ const Dashboard = () => {
     setDeleteDialog({ open: false, index: null });
   };
 
-  useEffect(() => {
-    async function fetchClientsCount() {
-      const { count, error } = await supabase
-        .from("clients")
-        .select("id", { count: "exact", head: true });
-      if (!error && typeof count === "number") {
-        setRegisteredClientsCount(count);
-      } else {
-        setRegisteredClientsCount(0);
-      }
-    }
-    fetchClientsCount();
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       <aside className="bg-white w-full md:w-64 p-6 shadow-md">
@@ -781,7 +766,7 @@ const Dashboard = () => {
           <Card
             icon={<Users className="text-purple-600" />}
             title="Registered Clients"
-            value={registeredClientsCount.toString()}
+            value="42"
           />
         </div>
 

@@ -19,6 +19,7 @@ const PODPage = () => {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [deliveryOutcome, setDeliveryOutcome] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -76,6 +77,7 @@ const PODPage = () => {
       setImage(null);
       setImagePreview("");
       setNotes("");
+      setDeliveryOutcome("");
     }, 1000);
   };
 
@@ -176,7 +178,48 @@ const PODPage = () => {
               placeholder="Enter any notes about the delivery..."
             />
           </div>
-          {/* Section 5: Submit */}
+          {/* Section 5: Delivery Outcome Radio Buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Delivery Outcome
+            </label>
+            <div className="flex space-x-6">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="deliveryOutcome"
+                  value="Delivered"
+                  checked={deliveryOutcome === "Delivered"}
+                  onChange={() => setDeliveryOutcome("Delivered")}
+                  className="mr-2"
+                />
+                Delivered
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="deliveryOutcome"
+                  value="Failed Attempt"
+                  checked={deliveryOutcome === "Failed Attempt"}
+                  onChange={() => setDeliveryOutcome("Failed Attempt")}
+                  className="mr-2"
+                />
+                Failed Attempt
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="deliveryOutcome"
+                  value="Returned"
+                  checked={deliveryOutcome === "Returned"}
+                  onChange={() => setDeliveryOutcome("Returned")}
+                  className="mr-2"
+                />
+                Returned
+              </label>
+            </div>
+          </div>
+          {/* Section 6: Submit */}
           {error && <div className="text-red-500 text-sm">{error}</div>}
           {success && (
             <div className="text-green-600 text-sm font-semibold">
