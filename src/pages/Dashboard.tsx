@@ -1563,14 +1563,11 @@ const Dashboard = () => {
                           <input
                             type="text"
                             value={form.readableShipmentId || ""}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                readableShipmentId: e.target.value,
-                              }))
-                            }
-                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                            required
+                            disabled
+                            readOnly
+                            tabIndex={-1}
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                            style={{ pointerEvents: 'none' }}
                           />
                           <span className="text-xs text-gray-500">
                             Shipment id

@@ -13,6 +13,10 @@ const shippingCosts: Record<string, number> = {
   Freight: 5000,
 };
 
+// GST and final amount constants
+const GST_RATE = 0.18; // 18% GST
+const MAX_PRICE = 100000000; // ₹10 crore
+
 interface Address {
   name: string;
   street: string;
@@ -83,6 +87,7 @@ const CreateShipment = () => {
   const [clientOptions, setClientOptions] = useState<{ id: number; client_code: string }[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientFetchError, setClientFetchError] = useState<string | null>(null);
+  // Add gst_amount and final_amount to form state
   const [form, setForm] = useState<any>({
     shipFrom: {
       name: "",
@@ -122,6 +127,8 @@ const CreateShipment = () => {
     shippingMethod: "Standard",
     totalWeight: 0,
     clientCode: "",
+    gst_amount: 0,
+    final_amount: 0,
   });
 
   // Fetch client codes using Supabase client
@@ -249,6 +256,17 @@ const CreateShipment = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMsg, setErrorModalMsg] = useState("");
 
+  // Calculate GST and final amount whenever base_price changes
+  useEffect(() => {
+    const gst = form.base_price * GST_RATE;
+    const final = form.base_price + gst;
+    setForm((prev: any) => ({
+      ...prev,
+      gst_amount: gst,
+      final_amount: final,
+    }));
+  }, [form.base_price]);
+
   // Unified submit handler for create and edit
   const handleSubmit = async () => {
     setSubmitError(null); // Reset error before submit
@@ -339,6 +357,13 @@ const CreateShipment = () => {
       return val === undefined || val === null || val === "" ? null : val;
     }
 
+    // Prevent overflow: base_price must not exceed MAX_PRICE
+    if (form.base_price > MAX_PRICE) {
+      setErrorModalMsg("Base price cannot exceed ₹10,00,00,000 (₹10 crore). Please adjust package prices.");
+      setShowErrorModal(true);
+      return;
+    }
+
     // If editing (form.id exists), call update endpoint
     if (form.id) {
       // Prepare packages for backend
@@ -362,6 +387,8 @@ const CreateShipment = () => {
         estimated_delivery_date: nullIfEmpty(form.deliveryDate),
         delivered_at: null, // You can set this if needed
         base_price: form.base_price,
+        gst_amount: form.gst_amount,
+        final_amount: form.final_amount,
         from_name_or_company: nullIfEmpty(form.shipFrom.name),
         from_contact_number: nullIfEmpty(form.shipFrom.contactNumber),
         from_email: nullIfEmpty(form.shipFrom.email),
@@ -384,7 +411,8 @@ const CreateShipment = () => {
       const token = localStorage.getItem("sb-access-token");
       const response = await fetch(`/shipment-update/${form.id}`, {
         method: "PUT",
-        headers: {
+        headers:
+         {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -444,6 +472,8 @@ const CreateShipment = () => {
       created_at: getCurrentISTISOString(),
       ...(user_id ? { user_id } : {}),
       base_price: form.base_price,
+      gst_amount: form.gst_amount,
+      final_amount: form.final_amount,
     };
     // Debug: log data before sending
     console.log("shipmentData", shipmentData);
@@ -1176,6 +1206,20 @@ const CreateShipment = () => {
         <div className="border border-blue-100 p-6 rounded-xl bg-blue-50/50">
           <h4 className="font-medium text-gray-700 mb-3">Shipment Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Only show Shipment ID field if editing (form.id exists) */}
+            {form.id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Shipment ID</label>
+                <input
+                  type="text"
+                  value={form.id}
+                  readOnly
+                  disabled
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                  tabIndex={-1}
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Status
@@ -1275,28 +1319,92 @@ const CreateShipment = () => {
         {/* Barcode and Print Section */}
         {barcodeValue && (
           <div className="mt-10 border-t pt-8">
-            <div className="text-center" ref={printRef}>
-              <h4 className="text-2xl font-bold mb-4 text-blue-700">
-                Shipment Summary
-              </h4>
-              <div className="mb-4 flex flex-col items-center">
-                <div className="bg-white p-4 rounded-lg shadow inline-block">
+            <div className="flex flex-col items-center">
+              <div id="shipment-print-area" className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-xl border border-blue-200">
+                <h2 className="text-3xl font-bold text-blue-700 mb-4 text-center">Shipment Details</h2>
+                <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-semibold text-gray-700 mb-1">Shipment ID: <span className="text-blue-700">{form.id || barcodeValue}</span></div>
+                    {/* Shipment ID is view-only, not editable */}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-700 mb-1">Status: <span className="text-blue-700">{form.status}</span></div>
+                    <div className="font-semibold text-gray-700 mb-1">Client Code: <span className="text-blue-700">{form.clientCode}</span></div>
+                    <div className="font-semibold text-gray-700 mb-1">Tracking #: <span className="text-blue-700">{form.trackingNumber || "N/A"}</span></div>
+                  </div>
+                </div>
+                <div className="mb-6 flex flex-col items-center">
                   <Barcode value={barcodeValue} />
                 </div>
-                <p className="mt-4 font-semibold text-gray-700">
-                  Tracking #:{" "}
-                  <span className="text-blue-600">
-                    {form.trackingNumber || "N/A"}
-                  </span>
-                </p>
+                <table className="min-w-full text-sm text-left border rounded-lg mb-4">
+                  <thead className="bg-blue-50 text-blue-700 font-bold">
+                    <tr>
+                      <th className="px-4 py-2">Description</th>
+                      <th className="px-4 py-2">Type</th>
+                      <th className="px-4 py-2">Weight (kg)</th>
+                      <th className="px-4 py-2">Dimensions (cm)</th>
+                      <th className="px-4 py-2">Quantity</th>
+                      <th className="px-4 py-2">Price (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.packages.map((pkg: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2">{pkg.description}</td>
+                        <td className="px-4 py-2">{pkg.packageType}</td>
+                        <td className="px-4 py-2">{pkg.weight}</td>
+                        <td className="px-4 py-2">{pkg.length} x {pkg.width} x {pkg.height}</td>
+                        <td className="px-4 py-2">{pkg.quantity}</td>
+                        <td className="px-4 py-2">₹{(pkg.value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* GST and Total Amount Section */}
+                {(() => {
+                  const gstRate = 0.18; // 18% GST
+                  const basePrice = form.base_price || 0;
+                  const gstAmount = basePrice * gstRate;
+                  const totalAmount = basePrice + gstAmount;
+                  return (
+                    <div className="mt-2 text-right">
+                      <div className="font-semibold text-blue-900">GST (18%): <span className="text-blue-700">₹{gstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                      <div className="font-bold text-lg text-blue-900">Total Amount: <span className="text-blue-700">₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                    </div>
+                  );
+                })()}
               </div>
+              <button
+                onClick={() => {
+                  const printContents = document.getElementById("shipment-print-area")?.innerHTML;
+                  const printWindow = window.open("", "", "width=900,height=700");
+                  if (printWindow && printContents) {
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Print Shipment</title>
+                          <style>
+                            body { font-family: Arial, sans-serif; padding: 40px; }
+                            h2 { color: #2563eb; }
+                            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                            th, td { border: 1px solid #ccc; padding: 8px; }
+                            th { background: #e3f0ff; }
+                            .section { margin-bottom: 24px; }
+                          </style>
+                        </head>
+                        <body>${printContents}</body>
+                      </html>
+                    `);
+                    printWindow.document.close();
+                    printWindow.focus();
+                    printWindow.print();
+                  }
+                }}
+                className="mt-6 bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white px-8 py-2 rounded-lg font-bold shadow-lg w-full transition"
+              >
+                Print Shipment
+              </button>
             </div>
-            <button
-              onClick={handlePrint}
-              className="mt-6 bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white px-8 py-2 rounded-lg font-bold shadow-lg w-full transition"
-            >
-              Print Shipment Label
-            </button>
           </div>
         )}
         {showErrorModal && (

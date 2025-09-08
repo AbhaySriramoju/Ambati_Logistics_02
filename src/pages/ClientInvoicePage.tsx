@@ -473,11 +473,103 @@ const ClientInvoicePage: React.FC = () => {
                         <td className="px-4 py-3">{new Date(inv.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
                         <td className="px-4 py-3">₹{inv.total_amount.toLocaleString("en-IN")}</td>
                         <td className="px-4 py-3">{inv.status}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 flex gap-2 items-center">
                           <button
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
                             onClick={() => { setInvoiceModalData(inv); setShowInvoiceModal(true); }}
                           >View</button>
+                          <button
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
+                            onClick={() => {
+                              // Create a hidden div for print content
+                              const printDiv = document.createElement("div");
+                              printDiv.style.display = "none";
+                              printDiv.innerHTML = `
+                                <div style=\"font-family: Arial, sans-serif; padding: 40px;\">
+                                  <h2 style=\"color:#2563eb;\">Invoice Details</h2>
+                                  <div><strong>Invoice Number:</strong> ${inv.invoice_number}</div>
+                                  <div><strong>Client Code:</strong> ${inv.client_code}</div>
+                                  <div><strong>Date:</strong> ${new Date(inv.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</div>
+                                  <div><strong>Status:</strong> ${inv.status}</div>
+                                  <table style=\"border-collapse:collapse;width:100%;margin-top:20px;\">
+                                    <thead>
+                                      <tr>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">Shipment ID</th>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">Date</th>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">Base Price</th>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">GST Amount</th>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">Final Amount</th>
+                                        <th style=\"border:1px solid #ccc;padding:8px;background:#e3f0ff;\">Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      ${
+                                        (inv.shipments || []).map(ship => {
+                                          const base = typeof ship.base_price === "number" ? ship.base_price : 0;
+                                          const gst = +(base * 0.18).toFixed(2);
+                                          const final = +(base + gst).toFixed(2);
+                                          return `
+                                            <tr>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${ship.shipment_id || ship.id.slice(0, 8)}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${ship.invoice_status}</td>
+                                            </tr>
+                                          `;
+                                        }).join("")
+                                      }
+                                    </tbody>
+                                  </table>
+                                  <div style=\"margin-top:20px;\">
+                                    <strong>Total Shipments:</strong> ${(inv.shipments || []).length}<br/>
+                                    <strong>Total Base Price:</strong> ₹${(inv.shipments || []).reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br/>
+                                    <strong>Total GST:</strong> ₹${(inv.shipments || []).reduce((sum, s) => {
+                                      const base = typeof s.base_price === "number" ? s.base_price : 0;
+                                      const gst = +(base * 0.18).toFixed(2);
+                                      return sum + gst;
+                                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br/>
+                                    <strong>Grand Total:</strong> ₹${(inv.shipments || []).reduce((sum, s) => {
+                                      const base = typeof s.base_price === "number" ? s.base_price : 0;
+                                      const gst = +(base * 0.18).toFixed(2);
+                                      const final = +(base + gst).toFixed(2);
+                                      return sum + final;
+                                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              `;
+                              document.body.appendChild(printDiv);
+                              const printWindow = window.open("", "", "width=900,height=700");
+                              if (printWindow) {
+                                printWindow.document.write(printDiv.innerHTML);
+                                printWindow.document.close();
+                                printWindow.focus();
+                                printWindow.print();
+                                setTimeout(() => {
+                                  printWindow.close();
+                                  document.body.removeChild(printDiv);
+                                }, 1000);
+                              }
+                            }}
+                          >Print</button>
+                          <button
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
+                            onClick={async () => {
+                              if (window.confirm("Are you sure you want to delete this invoice?")) {
+                                const { error } = await supabase
+                                  .from("invoices")
+                                  .delete()
+                                  .eq("id", inv.id);
+                                if (!error) {
+                                  setToast({ type: "success", message: "Invoice deleted successfully." });
+                                  fetchRaisedInvoices();
+                                } else {
+                                  setToast({ type: "error", message: error.message || "Failed to delete invoice." });
+                                }
+                              }
+                            }}
+                          >Delete</button>
                         </td>
                       </tr>
                     ))}

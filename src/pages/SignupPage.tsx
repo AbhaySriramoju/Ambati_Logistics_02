@@ -86,8 +86,15 @@ const SignupPage = () => {
       // Show success message
       setSuccess(true);
       
-    } catch (error) {
-      setError(error.message || "Registration failed. Please try again.");
+    } catch (error: any) {
+      let msg = error.message || "Registration failed. Please try again.";
+      if (
+        msg.includes("duplicate key value violates unique constraint") ||
+        msg.includes("users_email_key")
+      ) {
+        msg = "This email is already registered. Please use a different email or login.";
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
