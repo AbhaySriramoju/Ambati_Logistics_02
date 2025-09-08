@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 
 // Hardcoded shipment data for demo
 const MOCK_SHIPMENT = {
@@ -34,15 +35,21 @@ const PODPage = () => {
   }, [navigate]);
 
   // Simulate shipment fetch
-  const handleFetchShipment = () => {
+  const handleFetchShipment = async () => {
     setError("");
     setSuccess("");
-    if (trackingNumber === MOCK_SHIPMENT.tracking_number) {
-      setShipment(MOCK_SHIPMENT);
-    } else {
-      setShipment(null);
+    setShipment(null);
+    // Fetch shipment directly from shipments table using tracking_number
+    const { data: shipmentData, error: shipmentError } = await supabase
+      .from("shipments")
+      .select("*")
+      .eq("tracking_number", trackingNumber)
+      .single();
+    if (shipmentError || !shipmentData) {
       setError("Tracking number not found or already delivered.");
+      return;
     }
+    setShipment(shipmentData);
   };
 
   // Handle image selection and preview
@@ -57,7 +64,7 @@ const PODPage = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -65,20 +72,115 @@ const PODPage = () => {
       setError("Please enter a valid tracking number and fetch shipment.");
       return;
     }
-    if (!image) {
-      setError("Please upload a delivery photo.");
+    if (!deliveryOutcome) {
+      setError("Please select a delivery outcome.");
       return;
     }
-    // Simulate upload and submission
-    setTimeout(() => {
-      setSuccess("Proof of Delivery submitted successfully!");
+    if (deliveryOutcome === "Delivered" && !image) {
+      setError("Please upload a delivery photo for Delivered status.");
+      return;
+    }
+    if (
+      (deliveryOutcome === "Failed Attempt" || deliveryOutcome === "Returned") &&
+      !notes
+    ) {
+      setError("Please enter delivery notes for this outcome.");
+      return;
+    }
+
+    try {
+      // Get shipment by tracking number
+      const { data: shipmentData, error: shipmentError } = await supabase
+        .from("shipments")
+        .select("id")
+        .eq("tracking_number", trackingNumber)
+        .single();
+      if (shipmentError || !shipmentData) {
+        setError("Shipment not found.");
+        return;
+      }
+      const shipmentId = shipmentData.id;
+
+      let imageUrl = null;
+      if (deliveryOutcome === "Delivered" && image) {
+        // Upload image to Supabase Storage
+        const fileExt = image.name.split(".").pop();
+        const fileName = `pod_${shipmentId}_${Date.now()}.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("pod-images")
+          .upload(fileName, image);
+        if (uploadError) {
+          setError("Image upload failed: " + uploadError.message);
+          return;
+        }
+        imageUrl = supabase.storage
+          .from("pod-images")
+          .getPublicUrl(fileName).data.publicUrl;
+        // Insert proof_of_delivery row
+        const { error: insertError } = await supabase
+          .from("proof_of_delivery")
+          .insert({
+            shipment_id: shipmentId,
+            image_url: imageUrl,
+            notes: notes || null,
+          });
+        if (insertError) {
+          setError("Failed to save proof: " + insertError.message);
+          return;
+        }
+        // Update shipment status to Delivered
+        const { error: updateError } = await supabase
+          .from("shipments")
+          .update({
+            status: "Delivered",
+            delivered_at: new Date().toISOString(),
+            delivery_notes: notes || null,
+          })
+          .eq("id", shipmentId);
+        if (updateError) {
+          setError("Failed to update shipment: " + updateError.message);
+          return;
+        }
+      } else if (deliveryOutcome === "Failed Attempt") {
+        // Update shipment status to Failed Attempt
+        const { error: updateError } = await supabase
+          .from("shipments")
+          .update({
+            status: "Failed Attempt",
+            delivery_notes: notes,
+          })
+          .eq("id", shipmentId);
+        if (updateError) {
+          setError("Failed to update shipment: " + updateError.message);
+          return;
+        }
+      } else if (deliveryOutcome === "Returned") {
+        // Update shipment status to Returned
+        const { error: updateError } = await supabase
+          .from("shipments")
+          .update({
+            status: "Returned",
+            delivery_notes: notes,
+            returned_at: new Date().toISOString(),
+          })
+          .eq("id", shipmentId);
+        if (updateError) {
+          setError("Failed to update shipment: " + updateError.message);
+          return;
+        }
+      }
+      setSuccess(
+        `Proof of Delivery submitted successfully! Status: ${deliveryOutcome}`
+      );
       setTrackingNumber("");
       setShipment(null);
       setImage(null);
       setImagePreview("");
       setNotes("");
       setDeliveryOutcome("");
-    }, 1000);
+    } catch (err: any) {
+      setError("Unexpected error: " + (err.message || err));
+    }
   };
 
   const handleLogout = () => {
@@ -126,11 +228,11 @@ const PODPage = () => {
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
               <div className="mb-1">
                 <span className="font-medium">Recipient:</span>{" "}
-                {shipment.recipient_name}
+                {shipment.to_name_or_company}
               </div>
               <div className="mb-1">
                 <span className="font-medium">Address:</span>{" "}
-                {shipment.delivery_address}
+                {shipment.to_street_address}
               </div>
               <div className="mb-1">
                 <span className="font-medium">Shipping Method:</span>{" "}
@@ -138,7 +240,7 @@ const PODPage = () => {
               </div>
               <div>
                 <span className="font-medium">Expected Delivery:</span>{" "}
-                {shipment.expected_delivery_date}
+                {shipment.estimated_delivery_date}
               </div>
             </div>
           )}
