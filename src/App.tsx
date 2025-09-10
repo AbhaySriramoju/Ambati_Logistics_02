@@ -88,12 +88,12 @@ function App() {
           <Route
             path="/warehouse"
             element={
-              isLoggedIn ? <Warehouse /> : <Navigate to="/login" replace />
+              isLoggedIn ? <Warehouse /> : <Navigate to="/warehouse" replace />
             }
           />
           <Route
             path="/staff"
-            element={isLoggedIn ? <Staff /> : <Navigate to="/login" replace />}
+            element={isLoggedIn ? <Staff /> : <Navigate to="/staff" replace />}
           />
           {/* POD (Proof of Delivery) routes */}
           <Route path="/pod-login" element={<PODLogin />} />

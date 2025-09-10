@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Plus, X } from "lucide-react";
 
@@ -82,6 +82,130 @@ export default function Staff() {
   // Validation state
   const [formErrors, setFormErrors] = useState<any>({});
   const [editFormErrors, setEditFormErrors] = useState<any>({});
+
+  // --- User Search & Role Assignment Workflow ---
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [assignRole, setAssignRole] = useState("");
+  const [assignPosition, setAssignPosition] = useState("");
+  const [assignStatus, setAssignStatus] = useState("Active");
+  const [isExistingStaff, setIsExistingStaff] = useState(false);
+  const [showStaffToast, setShowStaffToast] = useState(false);
+  const toastTimeoutRef = useRef<any>(null);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState("");
+
+  // User search logic (Edge Function, POST with body)
+  useEffect(() => {
+    if (!userSearchTerm) {
+      setUserSearchResults([]);
+      setUserSearchLoading(false);
+      setUserSearchError("");
+      return;
+    }
+    setUserSearchLoading(true);
+    setUserSearchError("");
+    const fetchUsers = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("users", {
+          method: "POST",
+          body: JSON.stringify({ search: userSearchTerm })
+        });
+        setUserSearchLoading(false);
+        if (error) {
+          setUserSearchResults([]);
+          setUserSearchError("Error fetching users");
+        } else if (Array.isArray(data)) {
+          setUserSearchResults(data);
+        } else {
+          setUserSearchResults([]);
+        }
+      } catch (err) {
+        setUserSearchLoading(false);
+        setUserSearchResults([]);
+        setUserSearchError("Network error");
+      }
+    };
+    const timer = setTimeout(fetchUsers, 400);
+    return () => clearTimeout(timer);
+  }, [userSearchTerm]);
+
+  // When user selected, check if staff
+  useEffect(() => {
+    const checkStaff = async () => {
+      if (!selectedUser) return;
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("user_id", selectedUser.id)
+        .single();
+      if (data) {
+        setIsExistingStaff(true);
+        setAssignRole(data.role || "");
+        setAssignPosition(data.position || "");
+        setAssignStatus(data.status || "Active");
+      } else {
+        setIsExistingStaff(false);
+        setAssignRole("");
+        setAssignPosition("");
+        setAssignStatus("Active");
+      }
+    };
+    checkStaff();
+  }, [selectedUser]);
+
+  // Save handler for role assignment
+  const handleStaffAssignSave = async () => {
+    if (!selectedUser) return;
+    // Check if staff already exists for this user before creating
+    const staffRecord = await supabase
+      .from("staff")
+      .select("id")
+      .eq("user_id", selectedUser.id)
+      .single();
+    const staffId = staffRecord.data?.id;
+    if (staffId) {
+      // Staff exists, update instead
+      await supabase.functions.invoke("staff-update-id", {
+        method: "PUT",
+        body: JSON.stringify({
+          role: assignRole,
+          position: assignPosition,
+          status: assignStatus,
+          name: selectedUser.name,
+          email: selectedUser.email,
+          phone_number: selectedUser.phone,
+        }),
+        // Remove path property, not supported
+        // Instead, update your backend to accept staffId in body or as query param if needed
+      });
+    } else {
+      // Staff does not exist, create
+      await supabase.functions.invoke("staff-create", {
+        method: "POST",
+        body: JSON.stringify({
+          email: selectedUser.email,
+          role: assignRole,
+          position: assignPosition,
+          status: assignStatus,
+          name: selectedUser.name,
+          phone: selectedUser.phone,
+        }),
+      });
+    }
+    setShowStaffToast(true);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setShowStaffToast(false), 2000);
+    // Refresh staff list
+   await fetchStaff();
+    setSelectedUser(null);
+    setUserSearchTerm("");
+    setUserSearchResults([]);
+    setAssignRole("");
+    setAssignPosition("");
+    setAssignStatus("Active");
+  };
 
   // Helper: Validate form
   const validateForm = (data: any) => {
@@ -325,10 +449,10 @@ export default function Staff() {
   // Filtered staff for table
   const filteredStaff = staffList.filter((staff) => {
     const matchesSearch =
-      staff.name.toLowerCase().includes(search.toLowerCase()) ||
-      staff.position.toLowerCase().includes(search.toLowerCase()) ||
-      staff.email.toLowerCase().includes(search.toLowerCase()) ||
-      staff.phone.includes(search);
+      (staff.name?.toLowerCase() || "").includes(search.toLowerCase()) ||
+      (staff.position?.toLowerCase() || "").includes(search.toLowerCase()) ||
+      (staff.email?.toLowerCase() || "").includes(search.toLowerCase()) ||
+      (staff.phone || "").includes(search);
     // If you want to use status/role filters, uncomment below:
     // const matchesStatus = filterStatus === "All" || staff.status === filterStatus;
     // const matchesRole = filterRole === "All" || staff.role === filterRole;
@@ -338,10 +462,125 @@ export default function Staff() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
+      {/* User Search & Role Assignment */}
+      <div className="max-w-2xl mx-auto mb-8">
+        <div className="mb-4">
+          <input
+            type="text"
+            value={userSearchTerm}
+            onChange={e => {
+              setUserSearchTerm(e.target.value);
+              setSelectedUser(null);
+            }}
+            placeholder="Search users by name or email..."
+            className="border rounded px-3 py-2 w-full"
+          />
+          {userSearchLoading && (
+            <div className="text-xs text-gray-500 mt-2">Searching...</div>
+          )}
+          {userSearchError && (
+            <div className="text-xs text-red-500 mt-2">{userSearchError}</div>
+          )}
+          {userSearchTerm && !userSearchLoading && !selectedUser && (
+            <div className="bg-white border rounded shadow mt-2 max-h-60 overflow-y-auto">
+              {userSearchResults.length > 0 ? (
+                userSearchResults.map(user => (
+                  <div
+                    key={user.id}
+                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setUserSearchResults([]);
+                    }}
+                  >
+                    <div className="font-semibold">{user.name}</div>
+                    <div className="text-xs text-gray-500">{user.email}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-2 text-xs text-gray-500">No users found.</div>
+              )}
+            </div>
+          )}
+        </div>
+        {selectedUser && (
+          <div className="border rounded bg-blue-50/50 p-4 mb-4">
+            <div className="mb-2 font-bold text-blue-700">Selected User</div>
+            <div>Name: {selectedUser.name}</div>
+            <div>Email: {selectedUser.email}</div>
+            <div>Phone: {selectedUser.phone}</div>
+            <form
+              className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+              onSubmit={e => {
+                e.preventDefault();
+                handleStaffAssignSave();
+              }}
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <select
+                  value={assignRole}
+                  onChange={e => setAssignRole(e.target.value)}
+                  className="border px-3 py-2 rounded w-full"
+                  required
+                >
+                  <option value="">Select role</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Staff">Staff</option>
+                  <option value="Delivery Staff / Drivers">Delivery Staff / Drivers</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Position</label>
+                <input
+                  type="text"
+                  value={assignPosition}
+                  onChange={e => setAssignPosition(e.target.value)}
+                  className="border px-3 py-2 rounded w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  value={assignStatus}
+                  onChange={e => setAssignStatus(e.target.value)}
+                  className="border px-3 py-2 rounded w-full"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="md:col-span-3 flex gap-4 mt-4">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded shadow"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="border px-6 py-2 rounded"
+                  onClick={() => setSelectedUser(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+        {showStaffToast && (
+          <div className="fixed top-6 right-6 bg-green-600 text-white px-6 py-3 rounded shadow z-50">
+            Staff updated successfully
+          </div>
+        )}
+      </div>
+
       {/* Back Button */}
       <button
         onClick={() => window.history.back()}
-        className="mb-6 mt-2 sticky top-20 z-50 inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-gray-700 hover:bg-gray-50 transition"
+        className="fixed top-20 left-4 z-50 inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-gray-700 hover:bg-gray-50 transition"
       >
         <svg
           className="w-4 h-4 mr-2"
@@ -361,22 +600,7 @@ export default function Staff() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <h1 className="text-3xl font-bold text-blue-600">Staff</h1>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search staff..."
-              className="border rounded px-3 py-2 w-full sm:w-64"
-            />
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus size={18} />
-              Create Staff
-            </button>
-          </div>
+          {/* Removed search input and Create Staff button as requested */}
         </div>
 
         <div className="bg-white shadow-md rounded-lg overflow-x-auto">
@@ -696,5 +920,30 @@ export default function Staff() {
   );
 }
 
+// Move fetchStaff to top-level so it can be called anywhere
+const fetchStaff = async () => {
+  let user_id = undefined;
+  try {
+    const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
+    user_id = user?.id;
+  } catch {}
+  const { data, error } = await supabase.from("staff").select("*").eq("user_id", user_id);
+  if (error) {
+    alert("Error fetching staff: " + error.message);
+    return;
+  }
+  const mapped = (data || []).map((item, idx) => ({
+    uuid: item.id,
+    displayId: item.staff_code || `S${1000 + idx}`,
+    name: item.user_name,
+    position: item.position,
+    email: item.email,
+    phone: item.phone_number,
+    status: item.status,
+    role: item.role,
+    access_level: item.access_level,
+  }));
+  setStaffList(mapped);
+};
 // When you POST to backend, map frontend fields to backend fields as needed
 // Example: name -> user_name, phone -> phone_number
