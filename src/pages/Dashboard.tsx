@@ -755,12 +755,9 @@ const Dashboard = () => {
             icon={<Package className="text-green-600" />}
             title="Active Packages"
             value={shipments
-              .reduce(
-                (sum, ship) =>
-                  sum +
-                  ship.packages.reduce((pSum, pkg) => pSum + pkg.quantity, 0),
-                0
-              )
+              .filter(ship => ship.status === "Delivered")
+              .flatMap(ship => Array.isArray(ship.packages) ? ship.packages : [])
+              .reduce((sum, pkg) => sum + (Number(pkg.quantity) || 0), 0)
               .toString()}
           />
           <Card

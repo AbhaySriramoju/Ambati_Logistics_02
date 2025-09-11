@@ -16,35 +16,36 @@ export default function Staff() {
   };
   const [staffList, setStaffList] = useState<any[]>([]);
 
+  // Move fetchStaff inside component so it can use setStaffList
+  const fetchStaff = async () => {
+    let user_id = undefined;
+    try {
+      const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
+      user_id = user?.id;
+    } catch {}
+    const { data, error } = await supabase.from("staff").select("*").eq("user_id", user_id);
+    if (error) {
+      alert("Error fetching staff: " + error.message);
+      return;
+    }
+    const mapped = (data || []).map((item: any, idx: number) => {
+      return {
+        uuid: item.id,
+        displayId: item.staff_code || `S${1000 + idx}`,
+        name: item.user_name,
+        position: item.position,
+        email: item.email,
+        phone: item.phone_number,
+        status: item.status,
+        role: item.role,
+        access_level: item.access_level,
+      };
+    });
+    setStaffList(mapped);
+  };
+
   // Fetch staff from Supabase on mount
   useEffect(() => {
-    const fetchStaff = async () => {
-      let user_id = undefined;
-      try {
-        const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
-        user_id = user?.id;
-      } catch {}
-      const { data, error } = await supabase.from("staff").select("*").eq("user_id", user_id);
-      if (error) {
-        alert("Error fetching staff: " + error.message);
-        return;
-      }
-      // Use staff_code from backend for displayId, fallback to S1000+idx if missing
-      const mapped = (data || []).map((item: any, idx: number) => {
-        return {
-          uuid: item.id,
-          displayId: item.staff_code || `S${1000 + idx}`,
-          name: item.user_name,
-          position: item.position,
-          email: item.email,
-          phone: item.phone_number,
-          status: item.status,
-          role: item.role,
-          access_level: item.access_level,
-        };
-      });
-      setStaffList(mapped);
-    };
     fetchStaff();
   }, []);
 
@@ -920,30 +921,5 @@ export default function Staff() {
   );
 }
 
-// Move fetchStaff to top-level so it can be called anywhere
-const fetchStaff = async () => {
-  let user_id = undefined;
-  try {
-    const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
-    user_id = user?.id;
-  } catch {}
-  const { data, error } = await supabase.from("staff").select("*").eq("user_id", user_id);
-  if (error) {
-    alert("Error fetching staff: " + error.message);
-    return;
-  }
-  const mapped = (data || []).map((item, idx) => ({
-    uuid: item.id,
-    displayId: item.staff_code || `S${1000 + idx}`,
-    name: item.user_name,
-    position: item.position,
-    email: item.email,
-    phone: item.phone_number,
-    status: item.status,
-    role: item.role,
-    access_level: item.access_level,
-  }));
-  setStaffList(mapped);
-};
 // When you POST to backend, map frontend fields to backend fields as needed
 // Example: name -> user_name, phone -> phone_number
