@@ -25,7 +25,9 @@ interface RaisedInvoice {
 const ClientInvoicePage: React.FC = () => {
   // State
   const [clientCode, setClientCode] = useState("");
-  const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
+  const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>(
+    []
+  );
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
   const [totals, setTotals] = useState({ base: 0, gst: 0, grand: 0 });
   const [raisedInvoices, setRaisedInvoices] = useState<RaisedInvoice[]>([]);
@@ -33,10 +35,18 @@ const ClientInvoicePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<null | { clientCode: string; shipments: PendingShipment[]; totals: typeof totals }>(null);
+  const [previewData, setPreviewData] = useState<null | {
+    clientCode: string;
+    shipments: PendingShipment[];
+    totals: typeof totals;
+  }>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [invoiceModalData, setInvoiceModalData] = useState<RaisedInvoice | null>(null);
-  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [invoiceModalData, setInvoiceModalData] =
+    useState<RaisedInvoice | null>(null);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [selectAll, setSelectAll] = useState(true);
 
   // Add state for error modal
@@ -54,7 +64,13 @@ const ClientInvoicePage: React.FC = () => {
   }, [toast]);
 
   // Filter helper for valid shipments
-  const filterValidShipments = (shipments: PendingShipment[]) => shipments.filter(s => typeof s.base_price === "number" && s.base_price >= 0 && s.base_price <= MAX_PRICE);
+  const filterValidShipments = (shipments: PendingShipment[]) =>
+    shipments.filter(
+      (s) =>
+        typeof s.base_price === "number" &&
+        s.base_price >= 0 &&
+        s.base_price <= MAX_PRICE
+    );
 
   // Fetch pending shipments
   const fetchPendingShipments = async () => {
@@ -63,7 +79,9 @@ const ClientInvoicePage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status")
+        .select(
+          "id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status"
+        )
         .ilike("client_code", clientCode.trim())
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -74,7 +92,11 @@ const ClientInvoicePage: React.FC = () => {
       setSelectAll(true);
       // Show warning if any excluded
       if ((data || []).length > valid.length) {
-        setToast({ type: "error", message: "Some shipments were excluded due to unrealistically large price (above ₹10 crore)." });
+        setToast({
+          type: "error",
+          message:
+            "Some shipments were excluded due to unrealistically large price (above ₹10 crore).",
+        });
       }
     } catch (err: any) {
       let msg = err.message || "Failed to fetch shipments";
@@ -82,7 +104,8 @@ const ClientInvoicePage: React.FC = () => {
         msg.includes("violates check constraint") ||
         msg.includes("shipments_price_check")
       ) {
-        msg = "Base price exceeds allowed limit (₹10 crore). Please check your package prices.";
+        msg =
+          "Base price exceeds allowed limit (₹10 crore). Please check your package prices.";
         setErrorModalMsg(msg);
         setShowErrorModal(true);
       }
@@ -100,14 +123,16 @@ const ClientInvoicePage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("invoices")
-        .select("id, invoice_number, client_code, invoice_date, total_amount, status, shipments:shipments(*)")
+        .select(
+          "id, invoice_number, client_code, invoice_date, total_amount, status, shipments:shipments(*)"
+        )
         .ilike("client_code", clientCode)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
       // Filter out invalid shipments in each invoice
-      const filteredInvoices = (data || []).map(inv => ({
+      const filteredInvoices = (data || []).map((inv) => ({
         ...inv,
-        shipments: filterValidShipments(inv.shipments || [])
+        shipments: filterValidShipments(inv.shipments || []),
       }));
       setRaisedInvoices(filteredInvoices);
     } catch (err: any) {
@@ -118,8 +143,15 @@ const ClientInvoicePage: React.FC = () => {
   };
 
   // Filter out shipments with base_price above MAX_PRICE
-  const validPendingShipments = pendingShipments.filter(s => typeof s.base_price === "number" && s.base_price >= 0 && s.base_price <= MAX_PRICE);
-  const invalidShipments = pendingShipments.filter(s => typeof s.base_price === "number" && s.base_price > MAX_PRICE);
+  const validPendingShipments = pendingShipments.filter(
+    (s) =>
+      typeof s.base_price === "number" &&
+      s.base_price >= 0 &&
+      s.base_price <= MAX_PRICE
+  );
+  const invalidShipments = pendingShipments.filter(
+    (s) => typeof s.base_price === "number" && s.base_price > MAX_PRICE
+  );
 
   // Totals calculation
   useEffect(() => {
@@ -132,19 +164,31 @@ const ClientInvoicePage: React.FC = () => {
     });
     const base = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+      .reduce(
+        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
+        0
+      );
     const gst = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
+      .reduce(
+        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
+        0
+      );
     const grand = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
+      .reduce(
+        (sum, s) =>
+          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
+        0
+      );
     setTotals({ base, gst, grand });
     // Also update previewData if open
     if (showPreview && previewData) {
       setPreviewData({
         ...previewData,
-        shipments: updatedShipments.filter((s) => selectedShipments.includes(s.id)),
+        shipments: updatedShipments.filter((s) =>
+          selectedShipments.includes(s.id)
+        ),
         totals: { base, gst, grand },
       });
     }
@@ -174,7 +218,9 @@ const ClientInvoicePage: React.FC = () => {
 
   const handlePreview = () => {
     // Only show valid shipments in preview
-    const selected = filterValidShipments(pendingShipments).filter((s) => selectedShipments.includes(s.id));
+    const selected = filterValidShipments(pendingShipments).filter((s) =>
+      selectedShipments.includes(s.id)
+    );
     setPreviewData({ clientCode, shipments: selected, totals });
     setShowPreview(true);
   };
@@ -184,10 +230,12 @@ const ClientInvoicePage: React.FC = () => {
     setError(null);
     // Filter out already-invoiced shipments and invalid price
     const eligibleShipments = filterValidShipments(pendingShipments).filter(
-      (s) => selectedShipments.includes(s.id) && (!s.invoice_status || s.invoice_status.toLowerCase() !== "raised")
+      (s) =>
+        selectedShipments.includes(s.id) &&
+        (!s.invoice_status || s.invoice_status.toLowerCase() !== "raised")
     );
     // Sanitize numeric fields to prevent overflow
-    const sanitizedShipments = eligibleShipments.map(s => {
+    const sanitizedShipments = eligibleShipments.map((s) => {
       let base = typeof s.base_price === "number" ? s.base_price : 0;
       // Supabase Postgres NUMERIC max is ~1e+131, but let's use a safe upper limit for business logic
       // Set to zero if negative, NaN, or above 9999999999 (10 billion)
@@ -197,7 +245,11 @@ const ClientInvoicePage: React.FC = () => {
       return { ...s, base_price: base, gst_amount: gst, final_amount: final };
     });
     if (sanitizedShipments.length === 0) {
-      setToast({ type: "error", message: "Selected shipments have already been invoiced or have invalid price." });
+      setToast({
+        type: "error",
+        message:
+          "Selected shipments have already been invoiced or have invalid price.",
+      });
       setLoading(false);
       return;
     }
@@ -215,20 +267,33 @@ const ClientInvoicePage: React.FC = () => {
         const lastNum = lastInvoice[0].invoice_number.split("-").pop();
         nextNumber = parseInt(lastNum, 10) + 1;
       }
-      const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(4, "0")}`;
+      const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(
+        4,
+        "0"
+      )}`;
       // 2. Create invoice record with correct column mapping
-      const totalBase = sanitizedShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
-      const totalGst = sanitizedShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
-      const totalAmount = sanitizedShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
+      const totalBase = sanitizedShipments.reduce(
+        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
+        0
+      );
+      const totalGst = sanitizedShipments.reduce(
+        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
+        0
+      );
+      const totalAmount = sanitizedShipments.reduce(
+        (sum, s) =>
+          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
+        0
+      );
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
           invoice_number: invoiceNumber,
           client_code: clientCode,
           invoice_date: new Date().toISOString().slice(0, 10),
-          total_base: totalBase,      // <-- maps to Total Base Price
-          total_gst: totalGst,        // <-- maps to Total GST
-          total_amount: totalAmount,  // <-- maps to Grand Total
+          total_base: totalBase, // <-- maps to Total Base Price
+          total_gst: totalGst, // <-- maps to Total GST
+          total_amount: totalAmount, // <-- maps to Grand Total
           status: "raised",
         })
         .select();
@@ -237,15 +302,28 @@ const ClientInvoicePage: React.FC = () => {
       // 3. Link eligible shipments to invoice and update invoice_number
       const { error: updateError } = await supabase
         .from("shipments")
-        .update({ invoice_id: invoiceId, invoice_status: "raised", invoice_number: invoiceNumber })
-        .in("id", sanitizedShipments.map(s => s.id));
+        .update({
+          invoice_id: invoiceId,
+          invoice_status: "raised",
+          invoice_number: invoiceNumber,
+        })
+        .in(
+          "id",
+          sanitizedShipments.map((s) => s.id)
+        );
       if (updateError) throw updateError;
-      setToast({ type: "success", message: `Invoice ${invoiceNumber} raised successfully!` });
+      setToast({
+        type: "success",
+        message: `Invoice ${invoiceNumber} raised successfully!`,
+      });
       setShowPreview(false);
       fetchPendingShipments();
       fetchRaisedInvoices();
     } catch (err: any) {
-      setToast({ type: "error", message: err.message || "Failed to raise invoice." });
+      setToast({
+        type: "error",
+        message: err.message || "Failed to raise invoice.",
+      });
     }
     setLoading(false);
   };
@@ -254,16 +332,20 @@ const ClientInvoicePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center p-4">
       <div className="w-full max-w-5xl bg-white rounded-2xl p-6 shadow-2xl border border-blue-100 mt-12 mb-12">
-        <h2 className="text-3xl font-extrabold text-blue-700 mb-8 text-center">Client Invoices</h2>
+        <h2 className="text-3xl font-extrabold text-blue-700 mb-8 text-center">
+          Client Invoices
+        </h2>
         {/* Search Bar */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 items-end">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Client Code
+            </label>
             <input
               type="text"
               className="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-200"
               value={clientCode}
-              onChange={e => setClientCode(e.target.value)}
+              onChange={(e) => setClientCode(e.target.value)}
               placeholder="e.g. P120"
             />
           </div>
@@ -278,13 +360,25 @@ const ClientInvoicePage: React.FC = () => {
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
           <button
-            className={`px-4 py-2 rounded-t-lg font-semibold border-b-2 transition ${viewMode === "pending" ? "border-blue-600 text-blue-700 bg-blue-50" : "border-transparent text-gray-500 bg-transparent"}`}
+            className={`px-4 py-2 rounded-t-lg font-semibold border-b-2 transition ${
+              viewMode === "pending"
+                ? "border-blue-600 text-blue-700 bg-blue-50"
+                : "border-transparent text-gray-500 bg-transparent"
+            }`}
             onClick={() => setViewMode("pending")}
-          >Pending Shipments</button>
+          >
+            Pending Shipments
+          </button>
           <button
-            className={`px-4 py-2 rounded-t-lg font-semibold border-b-2 transition ${viewMode === "raised" ? "border-blue-600 text-blue-700 bg-blue-50" : "border-transparent text-gray-500 bg-transparent"}`}
+            className={`px-4 py-2 rounded-t-lg font-semibold border-b-2 transition ${
+              viewMode === "raised"
+                ? "border-blue-600 text-blue-700 bg-blue-50"
+                : "border-transparent text-gray-500 bg-transparent"
+            }`}
             onClick={() => setViewMode("raised")}
-          >Raised Invoices</button>
+          >
+            Raised Invoices
+          </button>
         </div>
         {/* Pending Shipments Table */}
         {viewMode === "pending" && (
@@ -298,7 +392,10 @@ const ClientInvoicePage: React.FC = () => {
                 {/* Warning for invalid shipments */}
                 {invalidShipments.length > 0 && (
                   <div className="bg-red-100 border border-red-400 text-red-700 rounded-lg p-3 mb-4 font-semibold">
-                    Warning: {invalidShipments.length} shipment(s) have unrealistically large base price (&gt; ₹{MAX_PRICE.toLocaleString("en-IN")}) and are excluded from totals and invoice creation.
+                    Warning: {invalidShipments.length} shipment(s) have
+                    unrealistically large base price (&gt; ₹
+                    {MAX_PRICE.toLocaleString("en-IN")}) and are excluded from
+                    totals and invoice creation.
                   </div>
                 )}
                 <div className="overflow-x-auto">
@@ -309,7 +406,7 @@ const ClientInvoicePage: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={selectAll}
-                            onChange={e => handleSelectAll(e.target.checked)}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
                           />
                         </th>
                         <th className="px-4 py-3">Shipment ID</th>
@@ -323,28 +420,72 @@ const ClientInvoicePage: React.FC = () => {
                     <tbody>
                       {validPendingShipments.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center text-gray-400 py-8 bg-blue-50">No valid pending shipments found.</td>
+                          <td
+                            colSpan={7}
+                            className="text-center text-gray-400 py-8 bg-blue-50"
+                          >
+                            No valid pending shipments found.
+                          </td>
                         </tr>
                       ) : (
                         validPendingShipments.map((ship) => {
-                          const base = typeof ship.base_price === "number" ? ship.base_price : 0;
+                          const base =
+                            typeof ship.base_price === "number"
+                              ? ship.base_price
+                              : 0;
                           const gst = +(base * 0.18).toFixed(2);
                           const final = +(base + gst).toFixed(2);
                           return (
-                            <tr key={ship.id} className={`border-b ${selectedShipments.includes(ship.id) ? "bg-blue-50" : "hover:bg-gray-50"} transition`}>
+                            <tr
+                              key={ship.id}
+                              className={`border-b ${
+                                selectedShipments.includes(ship.id)
+                                  ? "bg-blue-50"
+                                  : "hover:bg-gray-50"
+                              } transition`}
+                            >
                               <td className="px-4 py-3">
                                 <input
                                   type="checkbox"
                                   checked={selectedShipments.includes(ship.id)}
-                                  onChange={e => handleSelectShipment(ship.id, e.target.checked)}
+                                  onChange={(e) =>
+                                    handleSelectShipment(
+                                      ship.id,
+                                      e.target.checked
+                                    )
+                                  }
                                 />
                               </td>
-                              <td className="px-4 py-3 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                              <td className="px-4 py-3">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                              <td className="px-4 py-3">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3">{ship.invoice_status}</td>
+                              <td className="px-4 py-3 font-mono">
+                                {ship.shipment_id || ship.id.slice(0, 8)}
+                              </td>
+                              <td className="px-4 py-3">
+                                {new Date(ship.created_at).toLocaleDateString(
+                                  "en-IN",
+                                  { timeZone: "Asia/Kolkata" }
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                ₹
+                                {base.toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="px-4 py-3">
+                                ₹
+                                {gst.toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="px-4 py-3">
+                                ₹
+                                {final.toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="px-4 py-3">
+                                {ship.invoice_status}
+                              </td>
                             </tr>
                           );
                         })
@@ -354,27 +495,65 @@ const ClientInvoicePage: React.FC = () => {
                 </div>
                 {/* Totals Panel */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{selectedShipments.length}</span></div>
-                  <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700">₹{totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                  <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700">₹{totals.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                  <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700">₹{totals.grand.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                  <div className="font-semibold text-gray-700">
+                    Total Shipments Selected:{" "}
+                    <span className="text-blue-700">
+                      {selectedShipments.length}
+                    </span>
+                  </div>
+                  <div className="font-semibold text-gray-700">
+                    Total Base Price:{" "}
+                    <span className="text-blue-700">
+                      ₹
+                      {totals.base.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="font-semibold text-gray-700">
+                    Total GST:{" "}
+                    <span className="text-blue-700">
+                      ₹
+                      {totals.gst.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="font-bold text-lg text-blue-900">
+                    Grand Total:{" "}
+                    <span className="text-blue-700">
+                      ₹
+                      {totals.grand.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
                 </div>
                 {/* Action Buttons */}
                 <div className="flex gap-4 mb-2">
                   <button
                     className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
-                    onClick={() => { setSelectedShipments([]); setSelectAll(false); }}
-                  >Cancel</button>
+                    onClick={() => {
+                      setSelectedShipments([]);
+                      setSelectAll(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
                   <button
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
                     onClick={handlePreview}
                     disabled={selectedShipments.length === 0 || loading}
-                  >Preview Invoice</button>
+                  >
+                    Preview Invoice
+                  </button>
                   <button
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
                     onClick={handleRaiseInvoice}
                     disabled={selectedShipments.length === 0 || loading}
-                  >Raise Invoice</button>
+                  >
+                    Raise Invoice
+                  </button>
                 </div>
               </>
             )}
@@ -382,10 +561,27 @@ const ClientInvoicePage: React.FC = () => {
             {showPreview && previewData && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl border border-blue-200 relative">
-                  <button className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl" onClick={() => setShowPreview(false)}>&times;</button>
-                  <h3 className="text-2xl font-bold text-blue-700 mb-4">Invoice Preview</h3>
-                  <div className="mb-2 text-gray-700">Client Code: <span className="font-semibold">{previewData.clientCode}</span></div>
-                  <div className="mb-4 text-gray-700">Shipments: <span className="font-semibold">{previewData.shipments.length}</span></div>
+                  <button
+                    className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl"
+                    onClick={() => setShowPreview(false)}
+                  >
+                    &times;
+                  </button>
+                  <h3 className="text-2xl font-bold text-blue-700 mb-4">
+                    Invoice Preview
+                  </h3>
+                  <div className="mb-2 text-gray-700">
+                    Client Code:{" "}
+                    <span className="font-semibold">
+                      {previewData.clientCode}
+                    </span>
+                  </div>
+                  <div className="mb-4 text-gray-700">
+                    Shipments:{" "}
+                    <span className="font-semibold">
+                      {previewData.shipments.length}
+                    </span>
+                  </div>
                   <div className="overflow-x-auto mb-4">
                     <table className="min-w-full text-sm text-left border rounded-lg">
                       <thead className="bg-blue-50 text-blue-700 font-bold">
@@ -401,21 +597,56 @@ const ClientInvoicePage: React.FC = () => {
                       <tbody>
                         {previewData.shipments.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="text-center text-gray-400 py-8 bg-blue-50">No pending shipments found.</td>
+                            <td
+                              colSpan={6}
+                              className="text-center text-gray-400 py-8 bg-blue-50"
+                            >
+                              No pending shipments found.
+                            </td>
                           </tr>
                         ) : (
                           previewData.shipments.map((ship) => {
-                            const base = typeof ship.base_price === "number" ? ship.base_price : 0;
+                            const base =
+                              typeof ship.base_price === "number"
+                                ? ship.base_price
+                                : 0;
                             const gst = +(base * 0.18).toFixed(2);
                             const final = +(base + gst).toFixed(2);
                             return (
                               <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 font-mono">
+                                  {ship.shipment_id || ship.id.slice(0, 8)}
+                                </td>
+                                <td className="px-4 py-2">
+                                  {new Date(ship.created_at).toLocaleDateString(
+                                    "en-IN",
+                                    { timeZone: "Asia/Kolkata" }
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {base.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {gst.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {final.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {ship.invoice_status}
+                                </td>
                               </tr>
                             );
                           })
@@ -424,21 +655,57 @@ const ClientInvoicePage: React.FC = () => {
                     </table>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{previewData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700 max-w-[120px] truncate">₹{previewData.totals.grand.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">
+                      Total Shipments Selected:{" "}
+                      <span className="text-blue-700">
+                        {previewData.shipments.length}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-gray-700">
+                      Total Base Price:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {previewData.totals.base.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-gray-700">
+                      Total GST:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {previewData.totals.gst.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="font-bold text-lg text-blue-900">
+                      Grand Total:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {previewData.totals.grand.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
                       onClick={handleRaiseInvoice}
                       disabled={loading}
-                    >Raise Invoice</button>
+                    >
+                      Raise Invoice
+                    </button>
                     <button
                       className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
                       onClick={() => setShowPreview(false)}
-                    >Cancel</button>
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               </div>
@@ -453,7 +720,9 @@ const ClientInvoicePage: React.FC = () => {
             ) : error ? (
               <div className="text-center text-red-500 py-8">{error}</div>
             ) : raisedInvoices.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">No invoices found for this client/month.</div>
+              <div className="text-center text-gray-500 py-8">
+                No invoices found for this client/month.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm text-left whitespace-nowrap border rounded-lg mb-4">
@@ -468,29 +737,97 @@ const ClientInvoicePage: React.FC = () => {
                   </thead>
                   <tbody>
                     {raisedInvoices.map((inv) => (
-                      <tr key={inv.id} className="border-b hover:bg-gray-50 transition">
-                        <td className="px-4 py-3 font-mono">{inv.invoice_number}</td>
-                        <td className="px-4 py-3">{new Date(inv.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                        <td className="px-4 py-3">₹{inv.total_amount.toLocaleString("en-IN")}</td>
+                      <tr
+                        key={inv.id}
+                        className="border-b hover:bg-gray-50 transition"
+                      >
+                        <td className="px-4 py-3 font-mono">
+                          {inv.invoice_number}
+                        </td>
+                        <td className="px-4 py-3">
+                          {new Date(inv.invoice_date).toLocaleDateString(
+                            "en-IN",
+                            { timeZone: "Asia/Kolkata" }
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          ₹{inv.total_amount.toLocaleString("en-IN")}
+                        </td>
                         <td className="px-4 py-3">{inv.status}</td>
                         <td className="px-4 py-3 flex gap-2 items-center">
                           <button
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
-                            onClick={() => { setInvoiceModalData(inv); setShowInvoiceModal(true); }}
-                          >View</button>
+                            onClick={() => {
+                              setInvoiceModalData(inv);
+                              setShowInvoiceModal(true);
+                            }}
+                          >
+                            View
+                          </button>
                           <button
                             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
-                            onClick={() => {
+                            onClick={async () => {
+                              // Fetch client details for Billed To
+                              let clientDetails = {
+                                name: "",
+                                address: "",
+                                gstin: "",
+                                pan: "",
+                              };
+                              try {
+                                const { data: clientData } = await supabase
+                                  .from("clients")
+                                  .select("client_name,address,gstin,pan")
+                                  .eq("client_code", inv.client_code)
+                                  .single();
+                                if (clientData) {
+                                  clientDetails = {
+                                    name: clientData.client_name || "",
+                                    address: clientData.address || "",
+                                    gstin: clientData.gstin || "",
+                                    pan: clientData.pan || "",
+                                  };
+                                }
+                              } catch {}
                               // Create a hidden div for print content
                               const printDiv = document.createElement("div");
                               printDiv.style.display = "none";
                               printDiv.innerHTML = `
                                 <div style=\"font-family: Arial, sans-serif; padding: 40px;\">
+                                  <div style=\"display: flex; justify-content: space-between; margin-bottom: 32px;\">
+                                    <!-- Billed By -->
+                                    <div style=\"flex: 1; margin-right: 32px; border:1px solid #e3e3e3; border-radius:8px; padding:16px;\">
+                                      <h3 style=\"margin-bottom: 8px; color: #2563eb;\">Billed By</h3>
+                                      <div><strong>Ambati Logistics(OPC) PVT LTD</strong></div>
+                                      <div>3-9-90/F2, Sai S B Residency, Ramanthapur, Hyderabad, Telangana, India - 500013</div>
+                                      <div>GSTIN: 36AAWCA2012M1ZG</div>
+                                      <div>PAN: AAWCA2012M</div>
+                                      <div>Phone: +91 9177656116</div>
+                                    </div>
+                                    <!-- Billed To -->
+                                    <div style=\"flex: 1; border:1px solid #e3e3e3; border-radius:8px; padding:16px;\">
+                                      <h3 style=\"margin-bottom: 8px; color: #2563eb;\">Billed To</h3>
+                                      <div><strong>${clientDetails.name || ""}</strong></div>
+                                      <div>${clientDetails.address || ""}</div>
+                                      <div>GSTIN: ${clientDetails.gstin || ""}</div>
+                                      <div>PAN: ${clientDetails.pan || ""}</div>
+                                    </div>
+                                  </div>
                                   <h2 style=\"color:#2563eb;\">Invoice Details</h2>
-                                  <div><strong>Invoice Number:</strong> ${inv.invoice_number}</div>
-                                  <div><strong>Client Code:</strong> ${inv.client_code}</div>
-                                  <div><strong>Date:</strong> ${new Date(inv.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</div>
-                                  <div><strong>Status:</strong> ${inv.status}</div>
+                                  <div><strong>Invoice Number:</strong> ${
+                                    inv.invoice_number
+                                  }</div>
+                                  <div><strong>Client Code:</strong> ${
+                                    inv.client_code
+                                  }</div>
+                                  <div><strong>Date:</strong> ${new Date(
+                                    inv.invoice_date
+                                  ).toLocaleDateString("en-IN", {
+                                    timeZone: "Asia/Kolkata",
+                                  })}</div>
+                                  <div><strong>Status:</strong> ${
+                                    inv.status
+                                  }</div>
                                   <table style=\"border-collapse:collapse;width:100%;margin-top:20px;\">
                                     <thead>
                                       <tr>
@@ -503,44 +840,125 @@ const ClientInvoicePage: React.FC = () => {
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      ${
-                                        (inv.shipments || []).map(ship => {
-                                          const base = typeof ship.base_price === "number" ? ship.base_price : 0;
+                                      ${(inv.shipments || [])
+                                        .map((ship) => {
+                                          const base =
+                                            typeof ship.base_price === "number"
+                                              ? ship.base_price
+                                              : 0;
                                           const gst = +(base * 0.18).toFixed(2);
-                                          const final = +(base + gst).toFixed(2);
+                                          const final = +(base + gst).toFixed(
+                                            2
+                                          );
                                           return `
                                             <tr>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">${ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">${new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                              <td style=\"border:1px solid #ccc;padding:8px;\">${ship.invoice_status}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${
+                                                ship.shipment_id ||
+                                                ship.id.slice(0, 8)
+                                              }</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${new Date(
+                                                ship.created_at
+                                              ).toLocaleDateString("en-IN", {
+                                                timeZone: "Asia/Kolkata",
+                                              })}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${base.toLocaleString(
+                                                "en-IN",
+                                                {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                }
+                                              )}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${gst.toLocaleString(
+                                                "en-IN",
+                                                {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                }
+                                              )}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">₹${final.toLocaleString(
+                                                "en-IN",
+                                                {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                }
+                                              )}</td>
+                                              <td style=\"border:1px solid #ccc;padding:8px;\">${
+                                                ship.invoice_status
+                                              }</td>
                                             </tr>
                                           `;
-                                        }).join("")
-                                      }
+                                        })
+                                        .join("")}
                                     </tbody>
                                   </table>
                                   <div style=\"margin-top:20px;\">
-                                    <strong>Total Shipments:</strong> ${(inv.shipments || []).length}<br/>
-                                    <strong>Total Base Price:</strong> ₹${(inv.shipments || []).reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br/>
-                                    <strong>Total GST:</strong> ₹${(inv.shipments || []).reduce((sum, s) => {
-                                      const base = typeof s.base_price === "number" ? s.base_price : 0;
-                                      const gst = +(base * 0.18).toFixed(2);
-                                      return sum + gst;
-                                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<br/>
-                                    <strong>Grand Total:</strong> ₹${(inv.shipments || []).reduce((sum, s) => {
-                                      const base = typeof s.base_price === "number" ? s.base_price : 0;
-                                      const gst = +(base * 0.18).toFixed(2);
-                                      const final = +(base + gst).toFixed(2);
-                                      return sum + final;
-                                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    <strong>Total Shipments:</strong> ${
+                                      (inv.shipments || []).length
+                                    }<br/>
+                                    <strong>Total Base Price:</strong> ₹${(
+                                      inv.shipments || []
+                                    )
+                                      .reduce(
+                                        (sum, s) =>
+                                          sum +
+                                          (typeof s.base_price === "number"
+                                            ? s.base_price
+                                            : 0),
+                                        0
+                                      )
+                                      .toLocaleString("en-IN", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}<br/>
+                                    <strong>Total GST:</strong> ₹${(
+                                      inv.shipments || []
+                                    )
+                                      .reduce((sum, s) => {
+                                        const base =
+                                          typeof s.base_price === "number"
+                                            ? s.base_price
+                                            : 0;
+                                        const gst = +(base * 0.18).toFixed(2);
+                                        return sum + gst;
+                                      }, 0)
+                                      .toLocaleString("en-IN", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}<br/>
+                                    <strong>Grand Total:</strong> ₹${(
+                                      inv.shipments || []
+                                    )
+                                      .reduce((sum, s) => {
+                                        const base =
+                                          typeof s.base_price === "number"
+                                            ? s.base_price
+                                            : 0;
+                                        const gst = +(base * 0.18).toFixed(2);
+                                        const final = +(base + gst).toFixed(2);
+                                        return sum + final;
+                                      }, 0)
+                                      .toLocaleString("en-IN", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                  </div>
+                                  <!-- Bank Details -->
+                                  <div style=\"margin-top:32px; border:1px solid #e3e3e3; border-radius:8px; padding:16px; max-width:400px;\">
+                                    <h3 style=\"margin-bottom: 8px; color: #2563eb;\">Bank Details</h3>
+                                    <div><strong>Account Name:</strong> Ambati Logistics OPC PVT LTD</div>
+                                    <div><strong>Account Number:</strong> 50200072280440</div>
+                                    <div><strong>IFSC:</strong> HDFC0000368</div>
+                                    <div><strong>Account Type:</strong> Current</div>
+                                    <div><strong>Bank:</strong> HDFC</div>
                                   </div>
                                 </div>
                               `;
                               document.body.appendChild(printDiv);
-                              const printWindow = window.open("", "", "width=900,height=700");
+                              const printWindow = window.open(
+                                "",
+                                "",
+                                "width=900,height=700"
+                              );
                               if (printWindow) {
                                 printWindow.document.write(printDiv.innerHTML);
                                 printWindow.document.close();
@@ -552,24 +970,40 @@ const ClientInvoicePage: React.FC = () => {
                                 }, 1000);
                               }
                             }}
-                          >Print</button>
+                          >
+                            Print
+                          </button>
                           <button
                             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold shadow"
                             onClick={async () => {
-                              if (window.confirm("Are you sure you want to delete this invoice?")) {
+                              if (
+                                window.confirm(
+                                  "Are you sure you want to delete this invoice?"
+                                )
+                              ) {
                                 const { error } = await supabase
                                   .from("invoices")
                                   .delete()
                                   .eq("id", inv.id);
                                 if (!error) {
-                                  setToast({ type: "success", message: "Invoice deleted successfully." });
+                                  setToast({
+                                    type: "success",
+                                    message: "Invoice deleted successfully.",
+                                  });
                                   fetchRaisedInvoices();
                                 } else {
-                                  setToast({ type: "error", message: error.message || "Failed to delete invoice." });
+                                  setToast({
+                                    type: "error",
+                                    message:
+                                      error.message ||
+                                      "Failed to delete invoice.",
+                                  });
                                 }
                               }
                             }}
-                          >Delete</button>
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -581,12 +1015,43 @@ const ClientInvoicePage: React.FC = () => {
             {showInvoiceModal && invoiceModalData && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl border border-blue-200 relative">
-                  <button className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl" onClick={() => setShowInvoiceModal(false)}>&times;</button>
-                  <h3 className="text-2xl font-bold text-blue-700 mb-4">Invoice Details</h3>
-                  <div className="mb-2 text-gray-700">Invoice Number: <span className="font-semibold">{invoiceModalData.invoice_number}</span></div>
-                  <div className="mb-2 text-gray-700">Client Code: <span className="font-semibold">{invoiceModalData.client_code}</span></div>
-                  <div className="mb-2 text-gray-700">Date: <span className="font-semibold">{new Date(invoiceModalData.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</span></div>
-                  <div className="mb-4 text-gray-700">Status: <span className="font-semibold">{invoiceModalData.status}</span></div>
+                  <button
+                    className="absolute top-3 right-3 text-gray-400 hover:text-blue-600 text-2xl"
+                    onClick={() => setShowInvoiceModal(false)}
+                  >
+                    &times;
+                  </button>
+                  <h3 className="text-2xl font-bold text-blue-700 mb-4">
+                    Invoice Details
+                  </h3>
+                  <div className="mb-2 text-gray-700">
+                    Invoice Number:{" "}
+                    <span className="font-semibold">
+                      {invoiceModalData.invoice_number}
+                    </span>
+                  </div>
+                  <div className="mb-2 text-gray-700">
+                    Client Code:{" "}
+                    <span className="font-semibold">
+                      {invoiceModalData.client_code}
+                    </span>
+                  </div>
+                  <div className="mb-2 text-gray-700">
+                    Date:{" "}
+                    <span className="font-semibold">
+                      {new Date(
+                        invoiceModalData.invoice_date
+                      ).toLocaleDateString("en-IN", {
+                        timeZone: "Asia/Kolkata",
+                      })}
+                    </span>
+                  </div>
+                  <div className="mb-4 text-gray-700">
+                    Status:{" "}
+                    <span className="font-semibold">
+                      {invoiceModalData.status}
+                    </span>
+                  </div>
                   <div className="overflow-x-auto mb-4">
                     <table className="min-w-full text-sm text-left border rounded-lg">
                       <thead className="bg-blue-50 text-blue-700 font-bold">
@@ -602,21 +1067,64 @@ const ClientInvoicePage: React.FC = () => {
                       <tbody>
                         {invoiceModalData.shipments.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="text-center text-gray-400 py-8 bg-blue-50">No shipments found.</td>
+                            <td
+                              colSpan={6}
+                              className="text-center text-gray-400 py-8 bg-blue-50"
+                            >
+                              No shipments found.
+                            </td>
                           </tr>
                         ) : (
                           invoiceModalData.shipments.map((ship) => {
-                            const base = typeof ship.base_price === "number" ? ship.base_price : 0;
-                            const gst = typeof ship.gst_amount === "number" && ship.gst_amount > 0 ? ship.gst_amount : +(base * 0.18).toFixed(2);
-                            const final = typeof ship.final_amount === "number" && ship.final_amount > 0 ? ship.final_amount : +(base + gst).toFixed(2);
+                            const base =
+                              typeof ship.base_price === "number"
+                                ? ship.base_price
+                                : 0;
+                            const gst =
+                              typeof ship.gst_amount === "number" &&
+                              ship.gst_amount > 0
+                                ? ship.gst_amount
+                                : +(base * 0.18).toFixed(2);
+                            const final =
+                              typeof ship.final_amount === "number" &&
+                              ship.final_amount > 0
+                                ? ship.final_amount
+                                : +(base + gst).toFixed(2);
                             return (
                               <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono max-w-[120px] truncate">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 font-mono max-w-[120px] truncate">
+                                  {ship.shipment_id || ship.id.slice(0, 8)}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {new Date(ship.created_at).toLocaleDateString(
+                                    "en-IN",
+                                    { timeZone: "Asia/Kolkata" }
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {base.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {gst.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {final.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {ship.invoice_status}
+                                </td>
                               </tr>
                             );
                           })
@@ -625,25 +1133,90 @@ const ClientInvoicePage: React.FC = () => {
                     </table>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="font-semibold text-gray-700">Total Shipments Selected: <span className="text-blue-700">{invoiceModalData.shipments.length}</span></div>
-                    <div className="font-semibold text-gray-700">Total Base Price: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    <div className="font-semibold text-gray-700">Total GST: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => {
-                      const base = typeof s.base_price === "number" ? s.base_price : 0;
-                      const gst = typeof s.gst_amount === "number" && s.gst_amount > 0 ? s.gst_amount : +(base * 0.18).toFixed(2);
-                      return sum + gst;
-                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    <div className="font-bold text-lg text-blue-900">Grand Total: <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">₹{invoiceModalData.shipments.reduce((sum, s) => {
-                      const base = typeof s.base_price === "number" ? s.base_price : 0;
-                      const gst = typeof s.gst_amount === "number" && s.gst_amount > 0 ? s.gst_amount : +(base * 0.18).toFixed(2);
-                      const final = typeof s.final_amount === "number" && s.final_amount > 0 ? s.final_amount : +(base + gst).toFixed(2);
-                      return sum + final;
-                    }, 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div className="font-semibold text-gray-700">
+                      Total Shipments Selected:{" "}
+                      <span className="text-blue-700">
+                        {invoiceModalData.shipments.length}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-gray-700">
+                      Total Base Price:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {invoiceModalData.shipments
+                          .reduce(
+                            (sum, s) =>
+                              sum +
+                              (typeof s.base_price === "number"
+                                ? s.base_price
+                                : 0),
+                            0
+                          )
+                          .toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                      </span>
+                    </div>
+                    <div className="font-semibold text-gray-700">
+                      Total GST:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {invoiceModalData.shipments
+                          .reduce((sum, s) => {
+                            const base =
+                              typeof s.base_price === "number"
+                                ? s.base_price
+                                : 0;
+                            const gst =
+                              typeof s.gst_amount === "number" &&
+                              s.gst_amount > 0
+                                ? s.gst_amount
+                                : +(base * 0.18).toFixed(2);
+                            return sum + gst;
+                          }, 0)
+                          .toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                      </span>
+                    </div>
+                    <div className="font-bold text-lg text-blue-900">
+                      Grand Total:{" "}
+                      <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
+                        ₹
+                        {invoiceModalData.shipments
+                          .reduce((sum, s) => {
+                            const base =
+                              typeof s.base_price === "number"
+                                ? s.base_price
+                                : 0;
+                            const gst =
+                              typeof s.gst_amount === "number" &&
+                              s.gst_amount > 0
+                                ? s.gst_amount
+                                : +(base * 0.18).toFixed(2);
+                            const final =
+                              typeof s.final_amount === "number" &&
+                              s.final_amount > 0
+                                ? s.final_amount
+                                : +(base + gst).toFixed(2);
+                            return sum + final;
+                          }, 0)
+                          .toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-4 mt-6 justify-end">
                     <button
                       className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold shadow transition text-lg"
                       onClick={() => setShowInvoiceModal(false)}
-                    >Close</button>
+                    >
+                      Close
+                    </button>
                   </div>
                 </div>
               </div>
@@ -654,18 +1227,36 @@ const ClientInvoicePage: React.FC = () => {
         {showErrorModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-red-400 relative">
-              <button className="absolute top-3 right-3 text-gray-400 hover:text-red-600 text-2xl" onClick={() => setShowErrorModal(false)}>&times;</button>
+              <button
+                className="absolute top-3 right-3 text-gray-400 hover:text-red-600 text-2xl"
+                onClick={() => setShowErrorModal(false)}
+              >
+                &times;
+              </button>
               <h3 className="text-xl font-bold text-red-700 mb-4">Error</h3>
-              <div className="mb-4 text-red-700 font-semibold">{errorModalMsg}</div>
+              <div className="mb-4 text-red-700 font-semibold">
+                {errorModalMsg}
+              </div>
               <div className="flex justify-end">
-                <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold shadow transition text-lg" onClick={() => setShowErrorModal(false)}>OK</button>
+                <button
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold shadow transition text-lg"
+                  onClick={() => setShowErrorModal(false)}
+                >
+                  OK
+                </button>
               </div>
             </div>
           </div>
         )}
         {/* Toast */}
         {toast && (
-          <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-lg shadow-lg text-white font-semibold text-lg ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>{toast.message}</div>
+          <div
+            className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-lg shadow-lg text-white font-semibold text-lg ${
+              toast.type === "success" ? "bg-green-600" : "bg-red-600"
+            }`}
+          >
+            {toast.message}
+          </div>
         )}
       </div>
     </div>
