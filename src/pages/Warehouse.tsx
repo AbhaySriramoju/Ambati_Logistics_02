@@ -72,7 +72,14 @@ export default function Warehouse() {
         },
       ]);
       if (error) {
-        alert("Error creating warehouse: " + error.message);
+        if (
+          error.message &&
+          error.message.includes('new row violates row-level security policy for table "warehouses"')
+        ) {
+          alert("You don't have access to create warehouse.");
+        } else {
+          alert("Error creating warehouse: " + error.message);
+        }
         return;
       }
     }
@@ -82,28 +89,32 @@ export default function Warehouse() {
   };
 
   // Fetch warehouses from Supabase
-  const fetchWarehouses = async () => {
-    let user_id = undefined;
-    try {
-      const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
-      user_id = user?.id;
-    } catch {}
+ const fetchWarehouses = async () => {
+  try {
+    // Get logged-in user
+    const { data: { user } } = await import("../lib/supabaseClient")
+      .then(mod => mod.supabase.auth.getUser());
 
+    // Fetch warehouses (no user filter, since all roles should see them)
     const { data, error } = await supabase
       .from("warehouses")
-      .select("*")
-      .eq("user_id", user_id);
+      .select("*");
+
     if (error) {
       alert("Error fetching warehouses: " + error.message);
       setWarehouses([]);
     } else {
       setWarehouses(data || []);
     }
-  };
+  } catch (err) {
+    console.error("Error fetching warehouses:", err);
+    setWarehouses([]);
+  }
+};
 
-  useEffect(() => {
-    fetchWarehouses();
-  }, []);
+useEffect(() => {
+  fetchWarehouses();
+}, []);
 
   const handleEdit = (idx: number) => {
     setEditIndex(idx);
