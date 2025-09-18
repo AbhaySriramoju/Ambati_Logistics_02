@@ -16,20 +16,35 @@ export default function Staff() {
   };
   const [staffList, setStaffList] = useState<any[]>([]);
 
-  // Move fetchStaff inside component so it can use setStaffList
+  // --- Admin Role State ---
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Fetch staff and determine if current user is admin
   const fetchStaff = async () => {
-    let user_id = undefined;
     try {
       const { data: { user } } = await import("../lib/supabaseClient").then(mod => mod.supabase.auth.getUser());
-      user_id = user?.id;
-    } catch {}
-    const { data, error } = await supabase.from("staff").select("*").eq("user_id", user_id);
-    if (error) {
-      alert("Error fetching staff: " + error.message);
-      return;
-    }
-    const mapped = (data || []).map((item: any, idx: number) => {
-      return {
+      // Fetch current user's staff record to get their role
+      let adminCheck = false;
+      if (user?.id) {
+        const { data: myStaff, error: myStaffError } = await supabase
+          .from("staff")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        if (!myStaffError && myStaff && (myStaff.role === "admin" || myStaff.role === "Admin")) {
+          adminCheck = true;
+        }
+      }
+      setIsAdmin(adminCheck);
+      // Fetch all staff - RLS will automatically limit what the user can see
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*");
+      if (error) {
+        alert("Error fetching staff: " + error.message);
+        return;
+      }
+      const mapped = (data || []).map((item: any, idx: number) => ({
         uuid: item.id,
         displayId: item.staff_code || `S${1000 + idx}`,
         name: item.user_name,
@@ -39,9 +54,13 @@ export default function Staff() {
         status: item.status,
         role: item.role,
         access_level: item.access_level,
-      };
-    });
-    setStaffList(mapped);
+      }));
+
+      setStaffList(mapped);
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching staff.");
+    }
   };
 
   // Fetch staff from Supabase on mount
@@ -526,10 +545,10 @@ export default function Staff() {
                   required
                 >
                   <option value="">Select role</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Staff">Staff</option>
-                  <option value="Delivery Staff / Drivers">Delivery Staff / Drivers</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="delivery staff / drivers">Delivery Staff / Drivers</option>
                 </select>
               </div>
               <div>
@@ -644,12 +663,16 @@ export default function Staff() {
                     <button
                       className="bg-blue-100 text-blue-700 px-3 py-1 rounded shadow hover:bg-blue-200 transition text-xs font-semibold"
                       onClick={() => openEditModal(staff)}
+                      disabled={!isAdmin}
+                      style={!isAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                     >
                       Edit
                     </button>
                     <button
                       className="bg-red-100 text-red-700 px-3 py-1 rounded shadow hover:bg-red-200 transition text-xs font-semibold"
                       onClick={() => openDeleteModal(staff)}
+                      disabled={!isAdmin}
+                      style={!isAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                     >
                       Delete
                     </button>
@@ -746,7 +769,7 @@ export default function Staff() {
                   <option value="Delivery Staff / Drivers">
                     Delivery Staff / Drivers
                   </option>
-                  <option value="Admin">Admin</option>
+                  <option value="admin">admin</option>
                 </select>
                 <select
                   name="status"
@@ -849,12 +872,12 @@ export default function Staff() {
                   onChange={handleEditInputChange}
                   className="w-full border rounded px-3 py-2"
                 >
-                  <option value="Manager">Manager</option>
-                  <option value="Staff">Staff</option>
-                  <option value="Delivery Staff / Drivers">
+                  <option value="manager">Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="delivery staff / drivers">
                     Delivery Staff / Drivers
                   </option>
-                  <option value="Admin">Admin</option>
+                  <option value="admin">Admin</option>
                 </select>
                 <select
                   name="status"
