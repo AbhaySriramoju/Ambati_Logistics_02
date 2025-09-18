@@ -25,14 +25,9 @@ const PODPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for session
-    const sess = localStorage.getItem("pod_session");
-    if (!sess) {
-      navigate("/pod-login");
-    } else {
-      setSession(JSON.parse(sess));
-    }
-  }, [navigate]);
+    // Remove pod_session check and navigation to /pod-login
+    // PODPage is now always accessible for delivery staff roles
+  }, []);
 
   // Simulate shipment fetch
   const handleFetchShipment = async () => {

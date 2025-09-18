@@ -10,7 +10,7 @@ import {
   Pencil,
   Warehouse,
 } from "lucide-react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 
 import Barcode from "react-barcode";
@@ -19,6 +19,10 @@ import Card from "../components/Card";
 import CustomSelect from "../components/CustomSelect";
 import { supabase } from "../lib/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
+import { useUserRole } from "../hooks/useUserRole";
+import PODPage from "./PODPage";
+import TrackingPage from "./UserTracking"; // Adjust if your tracking page is named differently
+import FullDashboard from "./FullDashboard"; // Replace with your actual dashboard component
 
 interface Address {
   name: string;
@@ -61,6 +65,9 @@ interface Shipment {
 
 const Dashboard = () => {
   const location = useLocation();
+  const role = useUserRole();
+  const navigate = useNavigate();
+
   // Filters and pagination state
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -677,267 +684,251 @@ const Dashboard = () => {
     setDeleteDialog({ open: false, index: null });
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
-      <aside className="bg-white w-full md:w-64 p-6 shadow-md">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-blue-600">Ambati</h1>
-          <p className="text-sm text-gray-500">Logistics Dashboard</p>
-        </div>
-        <nav className="space-y-4">
-          {/* <div>
-            <SidebarItem icon={<BarChart2 />} label="Overview" />
-          </div> */}
-          <div>
-            <SidebarItem icon={<Truck />} label="Shipments" to="/dashboard" />
+  useEffect(() => {
+    if (
+      role &&
+      ["delivery staff", "drivers", "driver", "delivery staff / drivers"].includes(role)
+    ) {
+      navigate("/pod", { replace: true });
+    }
+  }, [role, navigate]);
+
+  if (!role) {
+    return <div className="flex items-center justify-center h-64 text-lg">Loading...</div>;
+  }
+
+  if (["admin", "manager", "staff"].includes(role)) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+        <aside className="bg-white w-full md:w-64 p-6 shadow-md">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-blue-600">Ambati</h1>
+            <p className="text-sm text-gray-500">Logistics Dashboard</p>
           </div>
-          <div>
-            <SidebarItem icon={<Package />} label="Client Invoice" to="/client-invoice" />
+          <nav className="space-y-4">
+            {/* <div>
+              <SidebarItem icon={<BarChart2 />} label="Overview" />
+            </div> */}
+            <div>
+              <SidebarItem icon={<Truck />} label="Shipments" to="/dashboard" />
+            </div>
+            <div>
+              <SidebarItem icon={<Package />} label="Client Invoice" to="/client-invoice" />
+            </div>
+            {/* <div>
+              <SidebarItem icon={<Package />} label="Packages" />
+            </div> */}
+            <div>
+              <SidebarItem
+                icon={<Warehouse />}
+                label="Warehouse"
+                to="/warehouse"
+              />
+            </div>
+            <div>
+              <SidebarItem icon={<Users />} label="Staff" to="/staff" />
+            </div>
+            {/* <div>
+              <SidebarItem icon={<Settings />} label="Settings" />
+            </div> */}
+          </nav>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center text-red-500 hover:text-red-700 mt-10"
+          >
+            <LogOut className="mr-2" />
+            Logout
+          </button>
+        </aside>
+
+        <main className="flex-1 p-4 md:p-8 space-y-10">
+          {/* Header and cards remain the same */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Welcome, Admin</h2>
+            <div className="flex gap-2">
+              <Link
+                to="/create-shipment"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow text-lg flex items-center space-x-2"
+              >
+                <Plus size={20} />
+                <span>Create Shipment</span>
+              </Link>
+              <Link
+                to="/shipment-payment"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow text-lg flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Pay for Shipment</span>
+              </Link>
+            </div>
           </div>
-          {/* <div>
-            <SidebarItem icon={<Package />} label="Packages" />
-          </div> */}
-          <div>
-            <SidebarItem
-              icon={<Warehouse />}
-              label="Warehouse"
-              to="/warehouse"
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card
+              icon={<Truck className="text-blue-600" />}
+              title="Total Shipments"
+              value={shipments.length.toString()}
+            />
+            <Card
+              icon={<Package className="text-green-600" />}
+              title="Active Packages"
+              value={shipments
+                .filter(ship => ship.status === "Delivered")
+                .flatMap(ship => Array.isArray(ship.packages) ? ship.packages : [])
+                .reduce((sum, pkg) => sum + (Number(pkg.quantity) || 0), 0)
+                .toString()}
+            />
+            <Card
+              icon={<Users className="text-purple-600" />}
+              title="Registered Clients"
+              value="42"
             />
           </div>
-          <div>
-            <SidebarItem icon={<Users />} label="Staff" to="/staff" />
-          </div>
-          {/* <div>
-            <SidebarItem icon={<Settings />} label="Settings" />
-          </div> */}
-        </nav>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center text-red-500 hover:text-red-700 mt-10"
-        >
-          <LogOut className="mr-2" />
-          Logout
-        </button>
-      </aside>
-
-      <main className="flex-1 p-4 md:p-8 space-y-10">
-        {/* Header and cards remain the same */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-          <h2 className="text-3xl font-bold text-gray-800">Welcome, Admin</h2>
-          <div className="flex gap-2">
-            <Link
-              to="/create-shipment"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow text-lg flex items-center space-x-2"
-            >
-              <Plus size={20} />
-              <span>Create Shipment</span>
-            </Link>
-            <Link
-              to="/shipment-payment"
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow text-lg flex items-center space-x-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>Pay for Shipment</span>
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card
-            icon={<Truck className="text-blue-600" />}
-            title="Total Shipments"
-            value={shipments.length.toString()}
-          />
-          <Card
-            icon={<Package className="text-green-600" />}
-            title="Active Packages"
-            value={shipments
-              .filter(ship => ship.status === "Delivered")
-              .flatMap(ship => Array.isArray(ship.packages) ? ship.packages : [])
-              .reduce((sum, pkg) => sum + (Number(pkg.quantity) || 0), 0)
-              .toString()}
-          />
-          <Card
-            icon={<Users className="text-purple-600" />}
-            title="Registered Clients"
-            value="42"
-          />
-        </div>
-
-        {/* Shipments table */}
-        <section>
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">
-            Recent Shipments
-          </h3>
-          {/* Filters */}
-          <div className="flex flex-wrap gap-4 mb-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border px-3 py-2 rounded"
-            >
-              <option value="">All Statuses</option>
-              <option value="Order Placed">Order Placed</option>
-              <option value="Pending">Pending</option>
-              <option value="Pre-Transit">Pre-Transit</option>
-              <option value="In Transit">In Transit</option>
-              <option value="Out for Delivery">Out for Delivery</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Failed Attempt">Failed Attempt</option>
-              <option value="Delayed">Delayed</option>
-              <option value="Lost/Damaged">Lost/Damaged</option>
-              <option value="Returned">Returned</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Other">Other</option>
-            </select>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search..."
-              className="border px-3 py-2 rounded"
-            />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="border px-3 py-2 rounded"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="border px-3 py-2 rounded"
-            />
-          </div>
-          <div className="overflow-x-auto rounded-lg border bg-gray-50">
-            <table className="min-w-full text-sm text-left whitespace-nowrap">
-              <thead className="bg-blue-50 text-gray-700">
-                <tr>
-                  <th className="px-4 py-3">Shipment ID</th>
-                  <th className="px-4 py-3">From</th>
-                  <th className="px-4 py-3">Mobile</th>
-                  <th className="px-4 py-3">To</th>
-                  <th className="px-4 py-3">Weight (kg)</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created At</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+          {/* Shipments table */}
+          <section>
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
+              Recent Shipments
+            </h3>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-4">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border px-3 py-2 rounded"
+              >
+                <option value="">All Statuses</option>
+                <option value="Order Placed">Order Placed</option>
+                <option value="Pending">Pending</option>
+                <option value="Pre-Transit">Pre-Transit</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Out for Delivery">Out for Delivery</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Failed Attempt">Failed Attempt</option>
+                <option value="Delayed">Delayed</option>
+                <option value="Lost/Damaged">Lost/Damaged</option>
+                <option value="Returned">Returned</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Other">Other</option>
+              </select>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                className="border px-3 py-2 rounded"
+              />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="border px-3 py-2 rounded"
+              />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="border px-3 py-2 rounded"
+              />
+            </div>
+            <div className="overflow-x-auto rounded-lg border bg-gray-50">
+              <table className="min-w-full text-sm text-left whitespace-nowrap">
+                <thead className="bg-blue-50 text-gray-700">
                   <tr>
-                    <td colSpan={8} className="text-center py-6">
-                      Loading...
-                    </td>
+                    <th className="px-4 py-3">Shipment ID</th>
+                    <th className="px-4 py-3">From</th>
+                    <th className="px-4 py-3">Mobile</th>
+                    <th className="px-4 py-3">To</th>
+                    <th className="px-4 py-3">Weight (kg)</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Created At</th>
+                    <th className="px-4 py-3">Actions</th>
                   </tr>
-                ) : shipments.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-6">
-                      No shipments found.
-                    </td>
-                  </tr>
-                ) : (
-                  shipments.map((ship, index) => (
-                    <tr
-                      key={ship.id}
-                      className="border-b hover:bg-gray-50 transition"
-                    >
-                      <td className="px-4 py-3 flex flex-col items-start gap-2">
-                        {/* Show readable shipment ID, fallback to shipment_id or formatted UUID if missing */}
-                        {ship.readableShipmentId
-                          ? ship.readableShipmentId
-                          : `SHP${String(ship.id).slice(0, 6).toUpperCase()}`}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-6">
+                        Loading...
                       </td>
-                      <td className="px-4 py-3">
-                        {ship.shipFrom.city}, {ship.shipFrom.country}
+                    </tr>
+                  ) : shipments.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-6">
+                        No shipments found.
                       </td>
-                      <td className="px-4 py-3">
-                        {ship.shipFrom.contactNumber}
-                      </td>
-                      <td className="px-4 py-3">
-                        {ship.shipTo.city}, {ship.shipTo.country}
-                      </td>
-                      <td className="px-4 py-3">{ship.totalWeight}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            ship.status === "Delivered"
-                              ? "bg-green-100 text-green-700"
-                              : ship.status === "In Transit"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {ship.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {/* Display only the date part of createdAt in IST, fallback to pickupDate if missing */}
-                        {ship.createdAt
-                          ? new Date(ship.createdAt).toLocaleDateString(
-                              "en-IN",
-                              {
-                                timeZone: "Asia/Kolkata",
-                                year: "numeric",
-                                month: "2-digit",
-                                day: "2-digit",
-                              }
-                            )
-                          : ship.pickupDate
-                          ? new Date(ship.pickupDate).toLocaleDateString(
-                              "en-IN",
-                              {
-                                timeZone: "Asia/Kolkata",
-                                year: "numeric",
-                                month: "2-digit",
-                                day: "2-digit",
-                              }
-                            )
-                          : ""}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEditModal(ship, index)}
-                            className="text-blue-600 hover:underline flex items-center space-x-1"
+                    </tr>
+                  ) : (
+                    shipments.map((ship, index) => (
+                      <tr
+                        key={ship.id}
+                        className="border-b hover:bg-gray-50 transition"
+                      >
+                        <td className="px-4 py-3 flex flex-col items-start gap-2">
+                          {/* Show readable shipment ID, fallback to shipment_id or formatted UUID if missing */}
+                          {ship.readableShipmentId
+                            ? ship.readableShipmentId
+                            : `SHP${String(ship.id).slice(0, 6).toUpperCase()}`}
+                        </td>
+                        <td className="px-4 py-3">
+                          {ship.shipFrom.city}, {ship.shipFrom.country}
+                        </td>
+                        <td className="px-4 py-3">
+                          {ship.shipFrom.contactNumber}
+                        </td>
+                        <td className="px-4 py-3">
+                          {ship.shipTo.city}, {ship.shipTo.country}
+                        </td>
+                        <td className="px-4 py-3">{ship.totalWeight}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              ship.status === "Delivered"
+                                ? "bg-green-100 text-green-700"
+                                : ship.status === "In Transit"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
                           >
-                            <Pencil size={14} />
-                            <span>Edit</span>
-                          </button>
-                          <Link
-                            to="/shipment-payment"
-                            className="text-green-600 hover:bg-green-50 hover:text-green-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-green-200"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>Pay</span>
-                          </Link>
-                          <button
-                            onClick={() => setDeleteDialog({ open: true, index })}
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-1 px-2 py-1 rounded transition"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="2"
+                            {ship.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* Display only the date part of createdAt in IST, fallback to pickupDate if missing */}
+                          {ship.createdAt
+                            ? new Date(ship.createdAt).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  timeZone: "Asia/Kolkata",
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                }
+                              )
+                            : ship.pickupDate
+                            ? new Date(ship.pickupDate).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  timeZone: "Asia/Kolkata",
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                }
+                              )
+                            : ""}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openEditModal(ship, index)}
+                              className="text-blue-600 hover:underline flex items-center space-x-1"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                            <span>Delete</span>
-                          </button>
-                          {ship.status === "Ready for Payment" && (
+                              <Pencil size={14} />
+                              <span>Edit</span>
+                            </button>
                             <Link
                               to="/shipment-payment"
                               className="text-green-600 hover:bg-green-50 hover:text-green-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-green-200"
@@ -947,737 +938,773 @@ const Dashboard = () => {
                               </svg>
                               <span>Pay</span>
                             </Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          {/* Pagination */}
-          <div className="flex justify-between items-center mt-4">
-            <div>
-              Showing {(page - 1) * pageSize + 1} -{" "}
-              {Math.min(page * pageSize, total)} of {total}
-            </div>
-            <div className="flex gap-2">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Prev
-              </button>
-              <span>Page {page}</span>
-              <button
-                disabled={page * pageSize >= total}
-                onClick={() => setPage(page + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="border px-2 py-1 rounded"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          </div>
-        </section>
-        {/* Delete Confirmation Dialog */}
-        {deleteDialog.open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded-xl shadow-2xl p-8 w-80 max-w-full border border-red-200 animate-fade-in">
-              <h3 className="text-lg text-red-500 font-bold mb-2 flex items-center gap-2">
-                <svg
-                  className="w-6 h-6 text-red-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-                Delete Shipment
-              </h3>
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete this shipment?
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={handleDeleteCancel}
-                  className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteConfirmed}
-                  className="px-4 py-2 rounded-lg bg-red-600 text-white font-bold shadow hover:bg-red-700 transition"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-            <div className="bg-white rounded-lg p-8 w-full max-w-2xl shadow-lg relative overflow-y-auto max-h-[90vh]">
-              <button
-                onClick={() => setShowModal(false)}
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-                aria-label="Close"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-              <h2 className="text-xl font-bold mb-4 text-blue-700">
-                Edit Shipment
-              </h2>
-              {/* Barcode and Print Button */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-white p-2 rounded shadow flex items-center gap-2">
-                  <Barcode
-                    value={barcodeValue}
-                    width={1.5}
-                    height={40}
-                    fontSize={12}
-                    displayValue={false}
-                  />
-                  <span className="text-xs text-gray-500 select-all">
-                    {barcodeValue}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (printRef.current) {
-                      const printContents = printRef.current.innerHTML;
-                      const printWindow = window.open(
-                        "",
-                        "",
-                        "height=700,width=900"
-                      );
-                      if (printWindow) {
-                        printWindow.document.write(
-                          "<html><head><title>Print Shipment</title>"
-                        );
-                        printWindow.document.write(
-                          "<style>body{font-family:sans-serif;padding:24px;} .barcode{margin-bottom:16px;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ccc;padding:8px;} .section{margin-bottom:18px;} .section-title{font-weight:bold;margin-bottom:6px;}</style>"
-                        );
-                        printWindow.document.write("</head><body>");
-                        printWindow.document.write(printContents);
-                        printWindow.document.write("</body></html>");
-                        printWindow.document.close();
-                        printWindow.focus();
-                        setTimeout(() => {
-                          printWindow.print();
-                          printWindow.close();
-                        }, 400);
-                      }
-                    }
-                  }}
-                  className="ml-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded shadow text-sm"
-                >
-                  Print
-                </button>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSubmit();
-                }}
-                className="space-y-6"
-              >
-                {/* Print Content Start */}
-                <div ref={printRef}>
-                  {/* Ship From Section */}
-                  <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
-                    <h4 className="font-medium text-gray-700 mb-3 section-title">
-                      Ship From
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Full Name or Company Name
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.name}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "name",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Contact Number
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.contactNumber}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "contactNumber",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Street Address
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.street}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "street",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          value={form.shipFrom.email}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "email",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.city}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "city",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          State/Province
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.state}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "state",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Postal Code
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.postalCode}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "postalCode",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Country
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipFrom.country}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipFrom",
-                              "country",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Ship To Section */}
-                  <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
-                    <h4 className="font-medium text-gray-700 mb-3 section-title">
-                      Ship To
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Full Name or Company Name
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.name}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "name",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Contact Number
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.contactNumber}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "contactNumber",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Street Address
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.street}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "street",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          value={form.shipTo.email}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "email",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.city}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "city",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          State/Province
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.state}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "state",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Postal Code
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.postalCode}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "postalCode",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Country
-                        </label>
-                        <input
-                          type="text"
-                          value={form.shipTo.country}
-                          onChange={(e) =>
-                            handleAddressChange(
-                              "shipTo",
-                              "country",
-                              e.target.value
-                            )
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Packages Section */}
-                  <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
-                    <h4 className="font-medium text-gray-700 mb-3 section-title">
-                      Packages
-                    </h4>
-                    <div>
-                      {form.packages.length === 0 ? (
-                        <div className="text-gray-400 italic">No packages added.</div>
-                      ) : (
-                        form.packages.map((pkg, index) => (
-                          <div key={index} className="mb-4 last:mb-0 border-b pb-4 last:border-b-0">
-                            <div className="flex justify-between items-center mb-2">
-                              <h5 className="text-sm font-medium text-gray-600">
-                                Package {index + 1}
-                              </h5>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Description
-                                </label>
-                                <input
-                                  type="text"
-                                  value={pkg.description}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "description", e.target.value)
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                            <button
+                              onClick={() => setDeleteDialog({ open: true, index })}
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-1 px-2 py-1 rounded transition"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
                                 />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Package Type
-                                </label>
-                                <select
-                                  value={pkg.packageType}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "packageType", e.target.value)
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                >
-                                  <option value="Box">Box</option>
-                                  <option value="Envelope">Envelope</option>
-                                  <option value="Pallet">Pallet</option>
-                                  <option value="Crate">Crate</option>
-                                  <option value="Tube">Tube</option>
-                                  <option value="Other">Other</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Weight (kg)
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={pkg.weight}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "weight", parseFloat(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Quantity
-                                </label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={pkg.quantity}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "quantity", parseInt(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Length (cm)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={pkg.length}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "length", parseFloat(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Width (cm)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={pkg.width}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "width", parseFloat(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Height (cm)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={pkg.height}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "height", parseFloat(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Price (INR)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={pkg.price}
-                                  onChange={(e) =>
-                                    handlePackageChange(index, "price", parseFloat(e.target.value))
-                                  }
-                                  className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                                />
-                              </div>
-                            </div>
+                              </svg>
+                              <span>Delete</span>
+                            </button>
+                            {ship.status === "Ready for Payment" && (
+                              <Link
+                                to="/shipment-payment"
+                                className="text-green-600 hover:bg-green-50 hover:text-green-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-green-200"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Pay</span>
+                              </Link>
+                            )}
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                  {/* Shipment Details Section */}
-                  <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
-                    <h4 className="font-medium text-gray-700 mb-3 section-title">
-                      Shipment Details
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex flex-col md:flex-row gap-4 md:col-span-2">
-                        <div className="w-full md:w-1/2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Shipment ID
-                          </label>
-                          <input
-                            type="text"
-                            value={form.readableShipmentId || ""}
-                            disabled
-                            readOnly
-                            tabIndex={-1}
-                            className="w-full border border-gray-300 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                            style={{ pointerEvents: 'none' }}
-                          />
-                          <span className="text-xs text-gray-500">
-                            Shipment id
-                          </span>
-                        </div>
-                        <div className="w-full md:w-1/2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Estimated Delivery Date
-                          </label>
-                          <input
-                            type="date"
-                            value={form.deliveryDate}
-                            min={new Date().toISOString().split("T")[0]}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                deliveryDate: e.target.value,
-                              }))
-                            }
-                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                            required
-                          />
-                          <span className="text-xs text-gray-500">
-                            Estimated Delivery Date must be today or later.
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <select
-                          value={form.status}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, status: e.target.value }))
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        >
-                          <option value="Order Placed">Order Placed</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Pre-Transit">Pre-Transit</option>
-                          <option value="In Transit">In Transit</option>
-                          <option value="Out for Delivery">
-                            Out for Delivery
-                          </option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Failed Attempt">Failed Attempt</option>
-                          <option value="Delayed">Delayed</option>
-                          <option value="Lost/Damaged">Lost/Damaged</option>
-                          <option value="Returned">Returned</option>
-                          <option value="Cancelled">Cancelled</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Shipping Method
-                        </label>
-                        <select
-                          value={form.shippingMethod}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              shippingMethod: e.target.value,
-                            }))
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                        >
-                          <option value="Standard">Standard</option>
-                          <option value="Express">Express</option>
-                          <option value="Overnight">Overnight</option>
-                          <option value="Freight">Freight</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Notes
-                        </label>
-                        <textarea
-                          value={form.notes || ""}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, notes: e.target.value }))
-                          }
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>{" "}
-                {/* End printRef content */}
-                <div className="flex justify-between">
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination */}
+            <div className="flex justify-between items-center mt-4">
+              <div>
+                Showing {(page - 1) * pageSize + 1} -{" "}
+                {Math.min(page * pageSize, total)} of {total}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span>Page {page}</span>
+                <button
+                  disabled={page * pageSize >= total}
+                  onClick={() => setPage(page + 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="border px-2 py-1 rounded"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          {/* Delete Confirmation Dialog */}
+          {deleteDialog.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+              <div className="bg-white rounded-xl shadow-2xl p-8 w-80 max-w-full border border-red-200 animate-fade-in">
+                <h3 className="text-lg text-red-500 font-bold mb-2 flex items-center gap-2">
+                  <svg
+                    className="w-6 h-6 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                  Delete Shipment
+                </h3>
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete this shipment?
+                </p>
+                <div className="flex justify-end gap-3">
                   <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="px-6 py-2 border border-blue-200 rounded-lg text-blue-700 bg-white hover:bg-blue-50 font-semibold shadow-sm transition"
+                    onClick={handleDeleteCancel}
+                    className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 font-semibold transition"
                   >
                     Cancel
                   </button>
                   <button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow"
+                    onClick={handleDeleteConfirmed}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-bold shadow hover:bg-red-700 transition"
                   >
-                    Save Changes
+                    Delete
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
+          )}
+          {showModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+              <div className="bg-white rounded-lg p-8 w-full max-w-2xl shadow-lg relative overflow-y-auto max-h-[90vh]">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                  aria-label="Close"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+                <h2 className="text-xl font-bold mb-4 text-blue-700">
+                  Edit Shipment
+                </h2>
+                {/* Barcode and Print Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-white p-2 rounded shadow flex items-center gap-2">
+                    <Barcode
+                      value={barcodeValue}
+                      width={1.5}
+                      height={40}
+                      fontSize={12}
+                      displayValue={false}
+                    />
+                    <span className="text-xs text-gray-500 select-all">
+                      {barcodeValue}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (printRef.current) {
+                        const printContents = printRef.current.innerHTML;
+                        const printWindow = window.open(
+                          "",
+                          "",
+                          "height=700,width=900"
+                        );
+                        if (printWindow) {
+                          printWindow.document.write(
+                            "<html><head><title>Print Shipment</title>"
+                          );
+                          printWindow.document.write(
+                            "<style>body{font-family:sans-serif;padding:24px;} .barcode{margin-bottom:16px;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ccc;padding:8px;} .section{margin-bottom:18px;} .section-title{font-weight:bold;margin-bottom:6px;}</style>"
+                          );
+                          printWindow.document.write("</head><body>");
+                          printWindow.document.write(printContents);
+                          printWindow.document.write("</body></html>");
+                          printWindow.document.close();
+                          printWindow.focus();
+                          setTimeout(() => {
+                            printWindow.print();
+                            printWindow.close();
+                          }, 400);
+                        }
+                      }
+                    }}
+                    className="ml-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded shadow text-sm"
+                  >
+                    Print
+                  </button>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSubmit();
+                  }}
+                  className="space-y-6"
+                >
+                  {/* Print Content Start */}
+                  <div ref={printRef}>
+                    {/* Ship From Section */}
+                    <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
+                      <h4 className="font-medium text-gray-700 mb-3 section-title">
+                        Ship From
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Full Name or Company Name
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.name}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "name",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Contact Number
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.contactNumber}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "contactNumber",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Street Address
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.street}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "street",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={form.shipFrom.email}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "email",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.city}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "city",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            State/Province
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.state}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "state",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Postal Code
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.postalCode}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "postalCode",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipFrom.country}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipFrom",
+                                "country",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Ship To Section */}
+                    <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
+                      <h4 className="font-medium text-gray-700 mb-3 section-title">
+                        Ship To
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Full Name or Company Name
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.name}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "name",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Contact Number
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.contactNumber}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "contactNumber",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Street Address
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.street}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "street",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={form.shipTo.email}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "email",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.city}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "city",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            State/Province
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.state}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "state",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Postal Code
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.postalCode}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "postalCode",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            value={form.shipTo.country}
+                            onChange={(e) =>
+                              handleAddressChange(
+                                "shipTo",
+                                "country",
+                                e.target.value
+                              )
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Packages Section */}
+                    <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
+                      <h4 className="font-medium text-gray-700 mb-3 section-title">
+                        Packages
+                      </h4>
+                      <div>
+                        {form.packages.length === 0 ? (
+                          <div className="text-gray-400 italic">No packages added.</div>
+                        ) : (
+                          form.packages.map((pkg, index) => (
+                            <div key={index} className="mb-4 last:mb-0 border-b pb-4 last:border-b-0">
+                              <div className="flex justify-between items-center mb-2">
+                                <h5 className="text-sm font-medium text-gray-600">
+                                  Package {index + 1}
+                                </h5>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={pkg.description}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "description", e.target.value)
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Package Type
+                                  </label>
+                                  <select
+                                    value={pkg.packageType}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "packageType", e.target.value)
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  >
+                                    <option value="Box">Box</option>
+                                    <option value="Envelope">Envelope</option>
+                                    <option value="Pallet">Pallet</option>
+                                    <option value="Crate">Crate</option>
+                                    <option value="Tube">Tube</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Weight (kg)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={pkg.weight}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "weight", parseFloat(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Quantity
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={pkg.quantity}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "quantity", parseInt(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Length (cm)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={pkg.length}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "length", parseFloat(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Width (cm)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={pkg.width}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "width", parseFloat(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Height (cm)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={pkg.height}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "height", parseFloat(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Price (INR)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={pkg.price}
+                                    onChange={(e) =>
+                                      handlePackageChange(index, "price", parseFloat(e.target.value))
+                                    }
+                                    className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    {/* Shipment Details Section */}
+                    <div className="border border-blue-100 p-4 rounded-xl bg-blue-50/50 section">
+                      <h4 className="font-medium text-gray-700 mb-3 section-title">
+                        Shipment Details
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col md:flex-row gap-4 md:col-span-2">
+                          <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Shipment ID
+                            </label>
+                            <input
+                              type="text"
+                              value={form.readableShipmentId || ""}
+                              disabled
+                              readOnly
+                              tabIndex={-1}
+                              className="w-full border border-gray-300 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                              style={{ pointerEvents: 'none' }}
+                            />
+                            <span className="text-xs text-gray-500">
+                              Shipment id
+                            </span>
+                          </div>
+                          <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Estimated Delivery Date
+                            </label>
+                            <input
+                              type="date"
+                              value={form.deliveryDate}
+                              min={new Date().toISOString().split("T")[0]}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  deliveryDate: e.target.value,
+                                }))
+                              }
+                              className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                              required
+                            />
+                            <span className="text-xs text-gray-500">
+                              Estimated Delivery Date must be today or later.
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Status
+                          </label>
+                          <select
+                            value={form.status}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, status: e.target.value }))
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          >
+                            <option value="Order Placed">Order Placed</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Pre-Transit">Pre-Transit</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Out for Delivery">
+                              Out for Delivery
+                            </option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Failed Attempt">Failed Attempt</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Lost/Damaged">Lost/Damaged</option>
+                            <option value="Returned">Returned</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Shipping Method
+                          </label>
+                          <select
+                            value={form.shippingMethod}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                shippingMethod: e.target.value,
+                              }))
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                          >
+                            <option value="Standard">Standard</option>
+                            <option value="Express">Express</option>
+                            <option value="Overnight">Overnight</option>
+                            <option value="Freight">Freight</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Notes
+                          </label>
+                          <textarea
+                            value={form.notes || ""}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, notes: e.target.value }))
+                            }
+                            className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>{" "}
+                  {/* End printRef content */}
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-6 py-2 border border-blue-200 rounded-lg text-blue-700 bg-white hover:bg-blue-50 font-semibold shadow-sm transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+  if (["delivery staff", "drivers", "driver", "delivery staff / drivers"].includes(role)) {
+    return <PODPage />;
+  }
+  // Default: customer or no role
+  return <TrackingPage />;
 };
 
 export default Dashboard;
