@@ -69,17 +69,20 @@ const SignupPage = () => {
         throw signUpError;
       }
 
-      // Create user profile in database
+      // Insert into users table after successful signup
       if (data.user) {
         const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: formData.email.trim(),
-            name: formData.name.trim(),
-            phone: formData.phone.trim() || null
-          });
-
+          .from("users")
+          .insert([
+            {
+              id: data.user.id,                // Auth UID
+              name: formData.name.trim(),
+              email: formData.email.trim(),
+              phone: formData.phone?.trim() || null,
+              created_at: new Date().toISOString(),
+              auth_user_id: null               // leave it null
+            }
+          ]);
         if (profileError) throw profileError;
       }
 

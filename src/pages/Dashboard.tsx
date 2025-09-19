@@ -745,7 +745,7 @@ const Dashboard = () => {
         <main className="flex-1 p-4 md:p-8 space-y-10">
           {/* Header and cards remain the same */}
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h2 className="text-3xl font-bold text-gray-800">Welcome, Admin</h2>
+            <h2 className="text-3xl font-bold text-gray-800">Welcome</h2>
             <div className="flex gap-2">
               <Link
                 to="/create-shipment"
@@ -766,7 +766,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card
               icon={<Truck className="text-blue-600" />}
               title="Total Shipments"
@@ -786,7 +786,7 @@ const Dashboard = () => {
               title="Registered Clients"
               value="42"
             />
-          </div>
+          </div> */}
 
           {/* Shipments table */}
           <section>

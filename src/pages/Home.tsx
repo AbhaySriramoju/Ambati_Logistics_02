@@ -30,14 +30,14 @@ export default function Home() {
               <ArrowRight className="h-5 w-5" />
             </Link>
             {/* POD Login Button */}
-            <Link
+            {/* <Link
               to="/pod-login"
               className="mt-6 ml-4 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full inline-flex items-center space-x-2 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
               style={{ display: 'inline-flex' }}
             >
               <span>POD Login</span>
               <ArrowRight className="h-5 w-5" />
-            </Link>
+            </Link> */}
           </div>
         </div>
       </div>

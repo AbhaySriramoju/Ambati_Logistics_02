@@ -116,7 +116,7 @@ export default function Staff() {
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState("");
 
-  // User search logic (Edge Function, POST with body)
+  // User search logic (direct Supabase query, not Edge Function)
   useEffect(() => {
     if (!userSearchTerm) {
       setUserSearchResults([]);
@@ -128,10 +128,14 @@ export default function Staff() {
     setUserSearchError("");
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("users", {
-          method: "POST",
-          body: JSON.stringify({ search: userSearchTerm })
-        });
+        const { data, error } = await supabase
+          .from("users") // or "auth.users" if you have RLS/admin access
+          .select("id, name, email, phone")
+          .or(
+            `name.ilike.%${userSearchTerm}%,email.ilike.%${userSearchTerm}%`
+          )
+          .limit(10);
+
         setUserSearchLoading(false);
         if (error) {
           setUserSearchResults([]);
