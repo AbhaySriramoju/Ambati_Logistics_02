@@ -75,12 +75,11 @@ const SignupPage = () => {
           .from("users")
           .insert([
             {
-              id: data.user.id,                // Auth UID
+              auth_user_id: data.user.id, // Always use auth.users.id
               name: formData.name.trim(),
               email: formData.email.trim(),
               phone: formData.phone?.trim() || null,
               created_at: new Date().toISOString(),
-              auth_user_id: null               // leave it null
             }
           ]);
         if (profileError) throw profileError;

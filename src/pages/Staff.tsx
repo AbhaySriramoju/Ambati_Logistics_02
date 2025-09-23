@@ -110,7 +110,6 @@ export default function Staff() {
   const [assignRole, setAssignRole] = useState("");
   const [assignPosition, setAssignPosition] = useState("");
   const [assignStatus, setAssignStatus] = useState("Active");
-  const [isExistingStaff, setIsExistingStaff] = useState(false);
   const [showStaffToast, setShowStaffToast] = useState(false);
   const toastTimeoutRef = useRef<any>(null);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
@@ -129,13 +128,12 @@ export default function Staff() {
     const fetchUsers = async () => {
       try {
         const { data, error } = await supabase
-          .from("users") // or "auth.users" if you have RLS/admin access
-          .select("id, name, email, phone")
+          .from("users")
+          .select("id, auth_user_id, name, email, phone") // <-- add id here
           .or(
-            `name.ilike.%${userSearchTerm}%,email.ilike.%${userSearchTerm}%`
+            `name.ilike.%${userSearchTerm}%,email.ilike.%${userSearchTerm}%,phone.ilike.%${userSearchTerm}%`
           )
           .limit(10);
-
         setUserSearchLoading(false);
         if (error) {
           setUserSearchResults([]);
@@ -145,7 +143,7 @@ export default function Staff() {
         } else {
           setUserSearchResults([]);
         }
-      } catch (err) {
+      } catch {
         setUserSearchLoading(false);
         setUserSearchResults([]);
         setUserSearchError("Network error");
@@ -155,82 +153,106 @@ export default function Staff() {
     return () => clearTimeout(timer);
   }, [userSearchTerm]);
 
-  // When user selected, check if staff
+  // Remove checkStaff effect and isExistingStaff state
   useEffect(() => {
-    const checkStaff = async () => {
-      if (!selectedUser) return;
-      const { data, error } = await supabase
-        .from("staff")
-        .select("*")
-        .eq("user_id", selectedUser.id)
-        .single();
-      if (data) {
-        setIsExistingStaff(true);
-        setAssignRole(data.role || "");
-        setAssignPosition(data.position || "");
-        setAssignStatus(data.status || "Active");
-      } else {
-        setIsExistingStaff(false);
-        setAssignRole("");
-        setAssignPosition("");
-        setAssignStatus("Active");
-      }
-    };
-    checkStaff();
+    if (selectedUser) {
+      setAssignRole("");
+      setAssignPosition("");
+      setAssignStatus("Active");
+    }
   }, [selectedUser]);
 
-  // Save handler for role assignment
+  // Assign or update staff role safely
   const handleStaffAssignSave = async () => {
-    if (!selectedUser) return;
-    // Check if staff already exists for this user before creating
-    const staffRecord = await supabase
-      .from("staff")
-      .select("id")
-      .eq("user_id", selectedUser.id)
-      .single();
-    const staffId = staffRecord.data?.id;
-    if (staffId) {
-      // Staff exists, update instead
-      await supabase.functions.invoke("staff-update-id", {
-        method: "PUT",
-        body: JSON.stringify({
-          role: assignRole,
-          position: assignPosition,
-          status: assignStatus,
-          name: selectedUser.name,
-          email: selectedUser.email,
-          phone_number: selectedUser.phone,
-        }),
-        // Remove path property, not supported
-        // Instead, update your backend to accept staffId in body or as query param if needed
-      });
-    } else {
-      // Staff does not exist, create
-      await supabase.functions.invoke("staff-create", {
-        method: "POST",
-        body: JSON.stringify({
-          email: selectedUser.email,
-          role: assignRole,
-          position: assignPosition,
-          status: assignStatus,
-          name: selectedUser.name,
-          phone: selectedUser.phone,
-        }),
-      });
+    if (!selectedUser || !selectedUser.auth_user_id) {
+      setUserSearchError("User ID is missing. Please select a valid user.");
+      return;
     }
-    setShowStaffToast(true);
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => setShowStaffToast(false), 2000);
-    // Refresh staff list
-   await fetchStaff();
-    setSelectedUser(null);
-    setUserSearchTerm("");
-    setUserSearchResults([]);
-    setAssignRole("");
-    setAssignPosition("");
-    setAssignStatus("Active");
-  };
 
+    try {
+      // 1️⃣ Look up local users.id (for possible future use, but not for staff table)
+      const { data: userRow, error: userLookupError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_user_id", selectedUser.auth_user_id)
+        .maybeSingle();
+
+      if (userLookupError || !userRow?.id) {
+        setUserSearchError("User not found in users table. Please add user first.");
+        return;
+      }
+
+      // 2️⃣ Generate staff_code
+      let staff_code = "S1000";
+      const { data: latestStaff } = await supabase
+        .from("staff")
+        .select("staff_code")
+        .order("staff_code", { ascending: false })
+        .limit(1);
+
+      if (latestStaff?.length && /^S\d+$/.test(latestStaff[0].staff_code)) {
+        const n = parseInt(latestStaff[0].staff_code.slice(1), 10);
+        staff_code = `S${n + 1}`;
+      }
+
+      // 3️⃣ Insert or update staff manually (no onConflict, no user_roles writes)
+      const { data: existingStaff } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("user_id", selectedUser.auth_user_id)
+        .maybeSingle();
+
+      let response;
+      if (existingStaff) {
+        // Update existing staff (only role and position, optionally status)
+        response = await supabase
+          .from("staff")
+          .update({
+            staff_code,
+            role: assignRole,
+            position: assignPosition,
+            status: assignStatus,
+            user_name: selectedUser.name,
+            email: selectedUser.email,
+            phone_number: selectedUser.phone,
+          })
+          .eq("user_id", selectedUser.auth_user_id);
+      } else {
+        // Insert new staff
+        response = await supabase
+          .from("staff")
+          .insert({
+            user_id: selectedUser.auth_user_id, // auth_user_id stays here
+            staff_code,
+            role: assignRole,
+            position: assignPosition,
+            status: assignStatus,
+            user_name: selectedUser.name,
+            email: selectedUser.email,
+            phone_number: selectedUser.phone,
+          });
+      }
+      // Log response for debugging
+      console.log("Staff insert/update response:", response);
+
+      // 4️⃣ Reset UI
+      setShowStaffToast(true);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => setShowStaffToast(false), 2000);
+
+      await fetchStaff();
+      setSelectedUser(null);
+      setUserSearchTerm("");
+      setUserSearchResults([]);
+      setAssignRole("");
+      setAssignPosition("");
+      setAssignStatus("Active");
+    } catch (error) {
+      console.error(error);
+      setShowStaffToast(false);
+      setUserSearchError("Error assigning staff role: " + (error?.message || error));
+    }
+  };
   // Helper: Validate form
   const validateForm = (data: any) => {
     const errors: any = {};

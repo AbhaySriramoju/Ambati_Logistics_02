@@ -361,7 +361,7 @@ const Dashboard = () => {
 
     // Calculate total price (sum of all package prices)
     const totalPrice = newPackages.reduce(
-      (sum, pkg) => sum + (typeof pkg.price === 'number' ? pkg.price : 0),
+      (sum, pkg) => sum + (typeof pkg.price === "number" ? pkg.price : 0),
       0
     );
 
@@ -455,7 +455,8 @@ const Dashboard = () => {
   const handleSubmit = async () => {
     // Calculate total price (sum of all package values)
     let totalPrice = form.packages.reduce(
-      (sum, pkg) => sum + (typeof pkg.price === 'number' && pkg.price > 0 ? pkg.price : 0),
+      (sum, pkg) =>
+        sum + (typeof pkg.price === "number" && pkg.price > 0 ? pkg.price : 0),
       0
     );
     if (isNaN(totalPrice) || totalPrice < 0) totalPrice = 0;
@@ -687,14 +688,50 @@ const Dashboard = () => {
   useEffect(() => {
     if (
       role &&
-      ["delivery staff", "drivers", "driver", "delivery staff / drivers"].includes(role)
+      [
+        "delivery staff",
+        "drivers",
+        "driver",
+        "delivery staff / drivers",
+      ].includes(role)
     ) {
       navigate("/pod", { replace: true });
     }
   }, [role, navigate]);
 
+  // Fetch role for current user (for debugging/logging only)
+  // (Removed example custom users table insert logic, as this belongs in SignupPage.tsx)
+  React.useEffect(() => {
+    const fetchRole = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: staff, error } = await supabase
+        .from("staff")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error(error);
+      } else if (staff && staff.role) {
+        // You can setRole here if you use a state, or just log it
+        console.log("User role:", staff.role);
+      } else {
+        // No staff record found for this user.
+        console.log("No staff record found for this user.");
+      }
+    };
+    fetchRole();
+  }, []);
+
   if (!role) {
-    return <div className="flex items-center justify-center h-64 text-lg">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64 text-lg">
+        Loading...
+      </div>
+    );
   }
 
   if (["admin", "manager", "staff"].includes(role)) {
@@ -713,7 +750,11 @@ const Dashboard = () => {
               <SidebarItem icon={<Truck />} label="Shipments" to="/dashboard" />
             </div>
             <div>
-              <SidebarItem icon={<Package />} label="Client Invoice" to="/client-invoice" />
+              <SidebarItem
+                icon={<Package />}
+                label="Client Invoice"
+                to="/client-invoice"
+              />
             </div>
             {/* <div>
               <SidebarItem icon={<Package />} label="Packages" />
@@ -758,8 +799,19 @@ const Dashboard = () => {
                 to="/shipment-payment"
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow text-lg flex items-center space-x-2"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <span>Pay for Shipment</span>
               </Link>
@@ -933,13 +985,26 @@ const Dashboard = () => {
                               to="/shipment-payment"
                               className="text-green-600 hover:bg-green-50 hover:text-green-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-green-200"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
                               </svg>
                               <span>Pay</span>
                             </Link>
                             <button
-                              onClick={() => setDeleteDialog({ open: true, index })}
+                              onClick={() =>
+                                setDeleteDialog({ open: true, index })
+                              }
                               className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-1 px-2 py-1 rounded transition"
                             >
                               <svg
@@ -963,8 +1028,19 @@ const Dashboard = () => {
                                 to="/shipment-payment"
                                 className="text-green-600 hover:bg-green-50 hover:text-green-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-green-200"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
                                 </svg>
                                 <span>Pay</span>
                               </Link>
@@ -1434,10 +1510,15 @@ const Dashboard = () => {
                       </h4>
                       <div>
                         {form.packages.length === 0 ? (
-                          <div className="text-gray-400 italic">No packages added.</div>
+                          <div className="text-gray-400 italic">
+                            No packages added.
+                          </div>
                         ) : (
                           form.packages.map((pkg, index) => (
-                            <div key={index} className="mb-4 last:mb-0 border-b pb-4 last:border-b-0">
+                            <div
+                              key={index}
+                              className="mb-4 last:mb-0 border-b pb-4 last:border-b-0"
+                            >
                               <div className="flex justify-between items-center mb-2">
                                 <h5 className="text-sm font-medium text-gray-600">
                                   Package {index + 1}
@@ -1452,7 +1533,11 @@ const Dashboard = () => {
                                     type="text"
                                     value={pkg.description}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "description", e.target.value)
+                                      handlePackageChange(
+                                        index,
+                                        "description",
+                                        e.target.value
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1464,7 +1549,11 @@ const Dashboard = () => {
                                   <select
                                     value={pkg.packageType}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "packageType", e.target.value)
+                                      handlePackageChange(
+                                        index,
+                                        "packageType",
+                                        e.target.value
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   >
@@ -1486,7 +1575,11 @@ const Dashboard = () => {
                                     min="0"
                                     value={pkg.weight}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "weight", parseFloat(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "weight",
+                                        parseFloat(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1500,7 +1593,11 @@ const Dashboard = () => {
                                     min="1"
                                     value={pkg.quantity}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "quantity", parseInt(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "quantity",
+                                        parseInt(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1514,7 +1611,11 @@ const Dashboard = () => {
                                     min="0"
                                     value={pkg.length}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "length", parseFloat(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "length",
+                                        parseFloat(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1528,7 +1629,11 @@ const Dashboard = () => {
                                     min="0"
                                     value={pkg.width}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "width", parseFloat(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "width",
+                                        parseFloat(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1542,7 +1647,11 @@ const Dashboard = () => {
                                     min="0"
                                     value={pkg.height}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "height", parseFloat(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "height",
+                                        parseFloat(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1556,7 +1665,11 @@ const Dashboard = () => {
                                     min="0"
                                     value={pkg.price}
                                     onChange={(e) =>
-                                      handlePackageChange(index, "price", parseFloat(e.target.value))
+                                      handlePackageChange(
+                                        index,
+                                        "price",
+                                        parseFloat(e.target.value)
+                                      )
                                     }
                                     className="w-full border border-gray-300 px-3 py-2 rounded-lg"
                                   />
@@ -1585,7 +1698,7 @@ const Dashboard = () => {
                               readOnly
                               tabIndex={-1}
                               className="w-full border border-gray-300 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                              style={{ pointerEvents: 'none' }}
+                              style={{ pointerEvents: "none" }}
                             />
                             <span className="text-xs text-gray-500">
                               Shipment id
@@ -1632,7 +1745,9 @@ const Dashboard = () => {
                               Out for Delivery
                             </option>
                             <option value="Delivered">Delivered</option>
-                            <option value="Failed Attempt">Failed Attempt</option>
+                            <option value="Failed Attempt">
+                              Failed Attempt
+                            </option>
                             <option value="Delayed">Delayed</option>
                             <option value="Lost/Damaged">Lost/Damaged</option>
                             <option value="Returned">Returned</option>
@@ -1700,7 +1815,14 @@ const Dashboard = () => {
       </div>
     );
   }
-  if (["delivery staff", "drivers", "driver", "delivery staff / drivers"].includes(role)) {
+  if (
+    [
+      "delivery staff",
+      "drivers",
+      "driver",
+      "delivery staff / drivers",
+    ].includes(role)
+  ) {
     return <PODPage />;
   }
   // Default: customer or no role
