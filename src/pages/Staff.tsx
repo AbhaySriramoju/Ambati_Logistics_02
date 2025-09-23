@@ -247,7 +247,7 @@ export default function Staff() {
       setAssignRole("");
       setAssignPosition("");
       setAssignStatus("Active");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setShowStaffToast(false);
       setUserSearchError("Error assigning staff role: " + (error?.message || error));
