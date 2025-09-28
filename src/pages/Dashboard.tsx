@@ -112,6 +112,7 @@ const Dashboard = () => {
     totalWeight: number;
     notes?: string;
     createdAt?: string; // <-- Use this field for dashboard display
+    trackingNumber?: string; // <-- Add this property
   };
 
   // Fetch shipments from Supabase
@@ -926,13 +927,13 @@ const Dashboard = () => {
                             : `SHP${String(ship.id).slice(0, 6).toUpperCase()}`}
                         </td>
                         <td className="px-4 py-3">
-                          {ship.shipFrom.city}, {ship.shipFrom.country}
+                          {ship.shipFrom.name}, {ship.shipFrom.city}
                         </td>
                         <td className="px-4 py-3">
                           {ship.shipFrom.contactNumber}
                         </td>
                         <td className="px-4 py-3">
-                          {ship.shipTo.city}, {ship.shipTo.country}
+                          {ship.shipTo.name}, {ship.shipTo.city}
                         </td>
                         <td className="px-4 py-3">{ship.totalWeight}</td>
                         <td className="px-4 py-3">
@@ -976,10 +977,104 @@ const Dashboard = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => openEditModal(ship, index)}
-                              className="text-blue-600 hover:underline flex items-center space-x-1"
+                              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-blue-200"
                             >
                               <Pencil size={14} />
                               <span>Edit</span>
+                            </button>
+                            {/* Print Button beside Edit */}
+                            <button
+                              onClick={async () => {
+                                // Generate barcode image using JsBarcode
+                                const barcodeValue =
+                                  ship.trackingNumber ||
+                                  ship.readableShipmentId ||
+                                  `SHP${String(ship.id).slice(0, 6).toUpperCase()}`;
+                                // Create a canvas and draw barcode
+                                const canvas = document.createElement("canvas");
+                                // Dynamically import JsBarcode (no build change needed)
+                                const JsBarcode = (await import("jsbarcode")).default;
+                                JsBarcode(canvas, barcodeValue, {
+                                  width: 2,
+                                  height: 40,
+                                  displayValue: false,
+                                  margin: 0,
+                                  background: "#fff",
+                                  lineColor: "#222",
+                                });
+                                const barcodeDataUrl = canvas.toDataURL("image/png");
+                                // Print-ready label layout (4x6 inches, thermal printer friendly)
+                                const printContents = `
+                                  <div style=\"width:4in;height:6in;padding:18px 24px;font-family:sans-serif;color:#000;box-sizing:border-box;\">
+                                    <div style=\"text-align:center;margin-bottom:12px;\">
+                                      <img src=\"/assets/Ambati_Logistics_Logo.png\" alt=\"Ambati Logistics Logo\" style=\"height:60px;margin-bottom:6px;object-fit:contain;\" />
+                                    </div>
+                                    <div style=\"text-align:center;margin-bottom:10px;\">
+                                      <div style=\"font-size:20px;font-weight:bold;\">Tracking #</div>
+                                      <div style=\"font-size:32px;font-weight:bold;margin:6px 0 8px 0;\">${ship.trackingNumber || ship.readableShipmentId || `SHP${String(ship.id).slice(0, 6).toUpperCase()}`}</div>
+                                      <div style=\"margin-bottom:8px;\">
+                                        <img src=\"${barcodeDataUrl}\" alt=\"Barcode\" style=\"display:block;margin:0 auto;width:180px;height:40px;border:1px solid #222;background:#fff;\" />
+                                      </div>
+                                    </div>
+                                    <div style=\"border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:10px;\">
+                                      <div style=\"font-size:15px;font-weight:bold;margin-bottom:4px;\">From:</div>
+                                      <div style=\"font-size:14px;\">${ship.shipFrom.name}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipFrom.street || ""}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipFrom.city || ""}, ${ship.shipFrom.state || ""} ${ship.shipFrom.postalCode || ""}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipFrom.country || ""}</div>
+                                      <div style=\"font-size:14px;\">Phone: ${ship.shipFrom.contactNumber || ""}</div>
+                                    </div>
+                                    <div style=\"border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:10px;\">
+                                      <div style=\"font-size:15px;font-weight:bold;margin-bottom:4px;\">To:</div>
+                                      <div style=\"font-size:14px;\">${ship.shipTo.name}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipTo.street || ""}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipTo.city || ""}, ${ship.shipTo.state || ""} ${ship.shipTo.postalCode || ""}</div>
+                                      <div style=\"font-size:14px;\">${ship.shipTo.country || ""}</div>
+                                      <div style=\"font-size:14px;\">Phone: ${ship.shipTo.contactNumber || ""}</div>
+                                    </div>
+                                    <div style=\"border:2px solid #222;border-radius:8px;padding:10px 12px;margin-bottom:10px;\">
+                                      <div style=\"font-size:15px;font-weight:bold;margin-bottom:4px;\">Shipment Details:</div>
+                                      <div style=\"font-size:14px;\">Weight: ${ship.totalWeight} kg</div>
+                                      <div style=\"font-size:14px;\">Service: ${ship.shippingMethod || "Standard"}</div>
+                                      <div style=\"font-size:14px;\">Date: ${ship.createdAt ? new Date(ship.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : ""}</div>
+                                    </div>
+                                    <div style=\"border:2px solid #222;border-radius:8px;padding:10px 12px;\">
+                                      <div style=\"font-size:15px;font-weight:bold;margin-bottom:4px;\">Handling Instructions:</div>
+                                      <div style=\"font-size:14px;\">${ship.notes || "Fragile, Prepaid"}</div>
+                                    </div>
+                                  </div>
+                                `;
+                                const printWindow = window.open("", "", "height=900,width=600");
+                                if (printWindow) {
+                                  printWindow.document.write("<html><head><title>Print Label</title></head><body style='margin:0;'>");
+                                  printWindow.document.write(printContents);
+                                  printWindow.document.write("</body></html>");
+                                  printWindow.document.close();
+                                  printWindow.focus();
+                                  setTimeout(() => {
+                                    printWindow.print();
+                                    printWindow.close();
+                                  }, 400);
+                                }
+                              }}
+                              className="text-purple-600 hover:bg-purple-50 hover:text-purple-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-purple-200"
+                              title="Print Shipment Label"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 9v6h12V9M6 9V7a2 2 0 012-2h8a2 2 0 012 2v2M6 15v2a2 2 0 002 2h8a2 2 0 002-2v-2"
+                                />
+                              </svg>
+                              <span>Print</span>
                             </button>
                             <Link
                               to="/shipment-payment"
@@ -1002,10 +1097,8 @@ const Dashboard = () => {
                               <span>Pay</span>
                             </Link>
                             <button
-                              onClick={() =>
-                                setDeleteDialog({ open: true, index })
-                              }
-                              className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-1 px-2 py-1 rounded transition"
+                              onClick={() => setDeleteDialog({ open: true, index })}
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-1 px-2 py-1 rounded transition border border-red-200"
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"

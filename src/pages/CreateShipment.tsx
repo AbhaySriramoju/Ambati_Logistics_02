@@ -488,9 +488,8 @@ const CreateShipment = () => {
         msg.includes("violates check constraint") ||
         msg.includes("shipments_price_check")
       ) {
-        msg = "Please, Enter the price";
-        setErrorModalMsg(msg);
-        setShowErrorModal(true);
+        // Remove price mandatory error
+        msg = shipmentError.message || "Failed to create shipment.";
       }
       setSubmitError(msg);
       return;
@@ -1313,7 +1312,7 @@ const CreateShipment = () => {
             onClick={handleSubmit}
             className="bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white px-8 py-2 rounded-lg font-bold shadow-lg transition"
           >
-            Create Shipment
+            Save
           </button>
         </div>
         {/* Barcode and Print Section */}
