@@ -770,6 +770,15 @@ const Dashboard = () => {
             <div>
               <SidebarItem icon={<Users />} label="Staff" to="/staff" />
             </div>
+            {role === "admin" && (
+              <div>
+                <SidebarItem
+                  icon={<Users />}
+                  label="Clients"
+                  to="/clients"
+                />
+              </div>
+            )}
             {/* <div>
               <SidebarItem icon={<Settings />} label="Settings" />
             </div> */}
