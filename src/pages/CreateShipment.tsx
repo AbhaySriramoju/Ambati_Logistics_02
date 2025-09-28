@@ -52,7 +52,6 @@ interface Shipment {
 }
 
 // Utility to get current IST time in ISO format
-// Utility to get IST time plus 12 hours in ISO format
 function getCurrentISTISOString() {
   const now = new Date();
   // IST is UTC+5:30
@@ -66,15 +65,7 @@ function getCurrentISTISOString() {
   const hour = pad(istTime.getHours());
   const min = pad(istTime.getMinutes());
   const sec = pad(istTime.getSeconds());
-  // Add 12 hours to IST time
-  istTime.setHours(istTime.getHours() + 12);
-  const hour12 = pad(istTime.getHours());
-  const min12 = pad(istTime.getMinutes());
-  const sec12 = pad(istTime.getSeconds());
-  const year12 = istTime.getFullYear();
-  const month12 = pad(istTime.getMonth() + 1);
-  const day12 = pad(istTime.getDate());
-  return `${year12}-${month12}-${day12} ${hour12}:${min12}:${sec12}+05:30`;
+  return `${year}-${month}-${day} ${hour}:${min}:${sec}+05:30`;
 }
 
 const MAX_PRICE = 100000000; // ₹10 crore
@@ -531,6 +522,32 @@ const CreateShipment = () => {
       window.location.reload();
     }
   };
+
+  // Helper to round to 2 decimals
+  const round2 = (num: number) => Math.round(num * 100) / 100;
+  // Track which weights have been manually overridden
+  const [manualWeight, setManualWeight] = useState<{ [idx: number]: boolean }>({});
+
+  // Auto-calculate weight when dimensions change (unless manually overridden)
+  useEffect(() => {
+    form.packages.forEach((pkg: Package, idx: number) => {
+      if (!manualWeight[idx]) {
+        const { length, width, height } = pkg;
+        if (
+          typeof length === "number" &&
+          typeof width === "number" &&
+          typeof height === "number" &&
+          length > 0 && width > 0 && height > 0
+        ) {
+          const volumetricWeight = round2((length * width * height) / 5000);
+          if (pkg.weight !== volumetricWeight) {
+            handlePackageChange(idx, "weight", volumetricWeight);
+          }
+        }
+      }
+    });
+    // eslint-disable-next-line
+  }, [form.packages.map(pkg => [pkg.length, pkg.width, pkg.height]).flat().join(",")]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center p-4">
@@ -1048,24 +1065,26 @@ const CreateShipment = () => {
                     step="0.01"
                     min="0"
                     value={pkg.weight}
-                    onChange={(e) =>
-                      handlePackageChange(
-                        index,
-                        "weight",
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    onChange={e => {
+                      handlePackageChange(index, "weight", parseFloat(e.target.value));
+                      setManualWeight(prev => ({ ...prev, [index]: true }));
+                    }}
+                    onBlur={e => {
+                      if (!e.target.value || isNaN(Number(e.target.value))) {
+                        setManualWeight(prev => ({ ...prev, [index]: false }));
+                      }
+                    }}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {errors.packages?.[index]?.weight && (
                     <div className="text-red-500 text-xs mt-1 flex items-center">
-                      <WarningAmberIcon
-                        fontSize="small"
-                        className="mr-1 text-yellow-500"
-                      />
+                      <WarningAmberIcon fontSize="small" className="mr-1 text-yellow-500" />
                       {errors.packages[index]?.weight}
                     </div>
                   )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    Volumetric weight auto-calculated from dimensions. You can override manually.
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
