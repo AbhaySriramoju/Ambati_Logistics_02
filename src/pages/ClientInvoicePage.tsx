@@ -7,7 +7,8 @@ interface PendingShipment {
   shipment_id: string;
   client_code: string;
   created_at: string;
-  base_price: number; // <-- Added
+  base_price: number;
+  gst_percentage: number;
   gst_amount: number;
   final_amount: number;
   invoice_status: string;
@@ -80,7 +81,7 @@ const ClientInvoicePage: React.FC = () => {
       const { data, error } = await supabase
         .from("shipments")
         .select(
-          "id, shipment_id, client_code, created_at, base_price, gst_amount, final_amount, invoice_status"
+          "id, shipment_id, client_code, created_at, base_price, gst_percentage, gst_amount, final_amount, invoice_status"
         )
         .ilike("client_code", clientCode.trim())
         .order("created_at", { ascending: true });
@@ -153,46 +154,79 @@ const ClientInvoicePage: React.FC = () => {
     (s) => typeof s.base_price === "number" && s.base_price > MAX_PRICE
   );
 
-  // Totals calculation
+  // --- Editable state for base price and GST percentage ---
+  const [editableShipments, setEditableShipments] = useState<Record<string, { base_price: number; gst_percentage: number }>>({});
+
+  // --- Update editableShipments when fetching pending shipments ---
   useEffect(() => {
-    // Only use valid shipments for totals
-    const updatedShipments = filterValidShipments(pendingShipments).map((s) => {
-      const base = typeof s.base_price === "number" ? s.base_price : 0;
-      const gst = +(base * 0.18).toFixed(2);
+    const editable: Record<string, { base_price: number; gst_percentage: number }> = {};
+    pendingShipments.forEach((s) => {
+      editable[s.id] = {
+        base_price: typeof s.base_price === "number" ? s.base_price : 0,
+        gst_percentage: typeof s.gst_percentage === "number" ? s.gst_percentage : 0,
+      };
+    });
+    setEditableShipments(editable);
+  }, [pendingShipments]);
+
+  // --- Editable input handlers ---
+  const handleEditShipmentField = (id: string, field: "base_price" | "gst_percentage", value: string) => {
+    setEditableShipments((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value === "" ? 0 : Number(value),
+      },
+    }));
+  };
+
+  // --- Validation helper ---
+  const validateEditableShipments = () => {
+    for (const id of selectedShipments) {
+      const { base_price, gst_percentage } = editableShipments[id] || {};
+      if (
+        typeof base_price !== "number" ||
+        isNaN(base_price) ||
+        base_price <= 0 ||
+        typeof gst_percentage !== "number" ||
+        isNaN(gst_percentage) ||
+        gst_percentage < 0
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // --- Totals calculation (use editableShipments) ---
+  useEffect(() => {
+    const updatedShipments = pendingShipments.map((s) => {
+      const edit = editableShipments[s.id] || {};
+      const base = typeof edit.base_price === "number" ? edit.base_price : s.base_price || 0;
+      const gstPerc = typeof edit.gst_percentage === "number" ? edit.gst_percentage : s.gst_percentage || 0;
+      const gst = +(base * gstPerc / 100).toFixed(2);
       const final = +(base + gst).toFixed(2);
-      return { ...s, gst_amount: gst, final_amount: final };
+      return { ...s, base_price: base, gst_percentage: gstPerc, gst_amount: gst, final_amount: final };
     });
     const base = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce(
-        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
-        0
-      );
+      .reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
     const gst = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce(
-        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
-        0
-      );
+      .reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
     const grand = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce(
-        (sum, s) =>
-          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
-        0
-      );
+      .reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
     setTotals({ base, gst, grand });
-    // Also update previewData if open
+    // Update previewData if open
     if (showPreview && previewData) {
       setPreviewData({
         ...previewData,
-        shipments: updatedShipments.filter((s) =>
-          selectedShipments.includes(s.id)
-        ),
+        shipments: updatedShipments.filter((s) => selectedShipments.includes(s.id)),
         totals: { base, gst, grand },
       });
     }
-  }, [pendingShipments, selectedShipments]);
+  }, [pendingShipments, selectedShipments, editableShipments]);
 
   // Handlers
   const handleSearch = () => {
@@ -228,27 +262,35 @@ const ClientInvoicePage: React.FC = () => {
   const handleRaiseInvoice = async () => {
     setLoading(true);
     setError(null);
-    // Filter out already-invoiced shipments and invalid price
+    // Validate editable fields
+    if (!validateEditableShipments()) {
+      setToast({
+        type: "error",
+        message: "Please enter valid Base Price and GST Percentage for all selected shipments.",
+      });
+      setLoading(false);
+      return;
+    }
+    // Prepare updated shipment data
     const eligibleShipments = filterValidShipments(pendingShipments).filter(
       (s) =>
         selectedShipments.includes(s.id) &&
         (!s.invoice_status || s.invoice_status.toLowerCase() !== "raised")
     );
-    // Sanitize numeric fields to prevent overflow
     const sanitizedShipments = eligibleShipments.map((s) => {
-      let base = typeof s.base_price === "number" ? s.base_price : 0;
-      // Supabase Postgres NUMERIC max is ~1e+131, but let's use a safe upper limit for business logic
-      // Set to zero if negative, NaN, or above 9999999999 (10 billion)
+      const edit = editableShipments[s.id] || {};
+      let base = typeof edit.base_price === "number" ? edit.base_price : s.base_price || 0;
+      let gstPerc = typeof edit.gst_percentage === "number" ? edit.gst_percentage : s.gst_percentage || 0;
       if (base < 0 || isNaN(base) || base > MAX_PRICE) base = 0;
-      const gst = +(base * 0.18).toFixed(2);
+      if (gstPerc < 0 || isNaN(gstPerc) || gstPerc > 100) gstPerc = 0;
+      const gst = +(base * gstPerc / 100).toFixed(2);
       const final = +(base + gst).toFixed(2);
-      return { ...s, base_price: base, gst_amount: gst, final_amount: final };
+      return { ...s, base_price: base, gst_percentage: gstPerc, gst_amount: gst, final_amount: final };
     });
     if (sanitizedShipments.length === 0) {
       setToast({
         type: "error",
-        message:
-          "Selected shipments have already been invoiced or have invalid price.",
+        message: "Selected shipments have already been invoiced or have invalid price.",
       });
       setLoading(false);
       return;
@@ -272,34 +314,36 @@ const ClientInvoicePage: React.FC = () => {
         "0"
       )}`;
       // 2. Create invoice record with correct column mapping
-      const totalBase = sanitizedShipments.reduce(
-        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
-        0
-      );
-      const totalGst = sanitizedShipments.reduce(
-        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
-        0
-      );
-      const totalAmount = sanitizedShipments.reduce(
-        (sum, s) =>
-          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
-        0
-      );
+      const totalBase = sanitizedShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+      const totalGst = sanitizedShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
+      const totalAmount = sanitizedShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
           invoice_number: invoiceNumber,
           client_code: clientCode,
           invoice_date: new Date().toISOString().slice(0, 10),
-          total_base: totalBase, // <-- maps to Total Base Price
-          total_gst: totalGst, // <-- maps to Total GST
-          total_amount: totalAmount, // <-- maps to Grand Total
+          total_base: totalBase,
+          total_gst: totalGst,
+          total_amount: totalAmount,
           status: "raised",
         })
         .select();
       if (invoiceError) throw invoiceError;
       const invoiceId = invoiceData[0].id;
-      // 3. Link eligible shipments to invoice and update invoice_number
+      // 3. Update selected shipments with invoice values
+      for (const s of sanitizedShipments) {
+        await supabase
+          .from("shipments")
+          .update({
+            base_price: s.base_price,
+            gst_percentage: s.gst_percentage,
+            gst_amount: s.gst_amount,
+            final_amount: s.final_amount,
+          })
+          .eq("id", s.id);
+      }
+      // 4. Link eligible shipments to invoice and update invoice_number
       const { error: updateError } = await supabase
         .from("shipments")
         .update({
@@ -412,8 +456,9 @@ const ClientInvoicePage: React.FC = () => {
                         <th className="px-4 py-3">Shipment ID</th>
                         <th className="px-4 py-3">Date</th>
                         <th className="px-4 py-3">Base Price</th>
+                        <th className="px-4 py-3">GST %</th>
                         <th className="px-4 py-3">GST Amount</th>
-                        <th className="px-4 py-3">Final Amount</th>
+                        <th className="px-4 py-3">Total</th>
                         <th className="px-4 py-3">Status</th>
                       </tr>
                     </thead>
@@ -429,21 +474,13 @@ const ClientInvoicePage: React.FC = () => {
                         </tr>
                       ) : (
                         validPendingShipments.map((ship) => {
-                          const base =
-                            typeof ship.base_price === "number"
-                              ? ship.base_price
-                              : 0;
-                          const gst = +(base * 0.18).toFixed(2);
+                          const edit = editableShipments[ship.id] || {};
+                          const base = typeof edit.base_price === "number" ? edit.base_price : ship.base_price || 0;
+                          const gstPerc = typeof edit.gst_percentage === "number" ? edit.gst_percentage : ship.gst_percentage || 0;
+                          const gst = +(base * gstPerc / 100).toFixed(2);
                           const final = +(base + gst).toFixed(2);
                           return (
-                            <tr
-                              key={ship.id}
-                              className={`border-b ${
-                                selectedShipments.includes(ship.id)
-                                  ? "bg-blue-50"
-                                  : "hover:bg-gray-50"
-                              } transition`}
-                            >
+                            <tr key={ship.id} className={`border-b ${selectedShipments.includes(ship.id) ? "bg-blue-50" : "hover:bg-gray-50"} transition`}>
                               <td className="px-4 py-3">
                                 <input
                                   type="checkbox"
@@ -466,23 +503,29 @@ const ClientInvoicePage: React.FC = () => {
                                 )}
                               </td>
                               <td className="px-4 py-3">
-                                ₹
-                                {base.toLocaleString("en-IN", {
-                                  minimumFractionDigits: 2,
-                                })}
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  value={base}
+                                  onChange={e => handleEditShipmentField(ship.id, "base_price", e.target.value)}
+                                  className="w-24 border rounded px-2 py-1"
+                                />
                               </td>
                               <td className="px-4 py-3">
-                                ₹
-                                {gst.toLocaleString("en-IN", {
-                                  minimumFractionDigits: 2,
-                                })}
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step="0.01"
+                                  value={gstPerc}
+                                  onChange={e => handleEditShipmentField(ship.id, "gst_percentage", e.target.value)}
+                                  className="w-16 border rounded px-2 py-1"
+                                />
+                                <span className="ml-1 text-xs text-gray-500">%</span>
                               </td>
-                              <td className="px-4 py-3">
-                                ₹
-                                {final.toLocaleString("en-IN", {
-                                  minimumFractionDigits: 2,
-                                })}
-                              </td>
+                              <td className="px-4 py-3">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                               <td className="px-4 py-3">
                                 {ship.invoice_status}
                               </td>
@@ -589,8 +632,9 @@ const ClientInvoicePage: React.FC = () => {
                           <th className="px-4 py-2">Shipment ID</th>
                           <th className="px-4 py-2">Date</th>
                           <th className="px-4 py-2">Base Price</th>
+                          <th className="px-4 py-2">GST %</th>
                           <th className="px-4 py-2">GST Amount</th>
-                          <th className="px-4 py-2">Final Amount</th>
+                          <th className="px-4 py-2">Total</th>
                           <th className="px-4 py-2">Status</th>
                         </tr>
                       </thead>
@@ -605,51 +649,34 @@ const ClientInvoicePage: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          previewData.shipments.map((ship) => {
-                            const base =
-                              typeof ship.base_price === "number"
-                                ? ship.base_price
-                                : 0;
-                            const gst = +(base * 0.18).toFixed(2);
-                            const final = +(base + gst).toFixed(2);
-                            return (
-                              <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono">
-                                  {ship.shipment_id || ship.id.slice(0, 8)}
-                                </td>
-                                <td className="px-4 py-2">
-                                  {new Date(ship.created_at).toLocaleDateString(
-                                    "en-IN",
-                                    { timeZone: "Asia/Kolkata" }
-                                  )}
-                                </td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">
-                                  ₹
-                                  {base.toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">
-                                  ₹
-                                  {gst.toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">
-                                  ₹
-                                  {final.toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">
-                                  {ship.invoice_status}
-                                </td>
-                              </tr>
-                            );
-                          })
+                          previewData.shipments.map((ship) => (
+                            <tr key={ship.id}>
+                              <td className="px-4 py-2 font-mono">
+                                {ship.shipment_id || ship.id.slice(0, 8)}
+                              </td>
+                              <td className="px-4 py-2">
+                                {new Date(ship.created_at).toLocaleDateString(
+                                  "en-IN",
+                                  { timeZone: "Asia/Kolkata" }
+                                )}
+                              </td>
+                              <td className="px-4 py-2 max-w-[120px] truncate">
+                                ₹{typeof ship.base_price === "number" ? ship.base_price.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
+                              </td>
+                              <td className="px-4 py-2 max-w-[80px] truncate">
+                                {typeof ship.gst_percentage === "number" ? ship.gst_percentage : 0}%
+                              </td>
+                              <td className="px-4 py-2 max-w-[120px] truncate">
+                                ₹{typeof ship.gst_amount === "number" ? ship.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
+                              </td>
+                              <td className="px-4 py-2 max-w-[120px] truncate">
+                                ₹{typeof ship.final_amount === "number" ? ship.final_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
+                              </td>
+                              <td className="px-4 py-2 max-w-[100px] truncate">
+                                {ship.invoice_status}
+                              </td>
+                            </tr>
+                          ))
                         )}
                       </tbody>
                     </table>
@@ -1059,8 +1086,9 @@ const ClientInvoicePage: React.FC = () => {
                           <th className="px-4 py-2">Shipment ID</th>
                           <th className="px-4 py-2">Date</th>
                           <th className="px-4 py-2">Base Price</th>
+                          <th className="px-4 py-2">GST %</th>
                           <th className="px-4 py-2">GST Amount</th>
-                          <th className="px-4 py-2">Final Amount</th>
+                          <th className="px-4 py-2">Total</th>
                           <th className="px-4 py-2">Status</th>
                         </tr>
                       </thead>
@@ -1107,6 +1135,9 @@ const ClientInvoicePage: React.FC = () => {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[80px] truncate">
+                                  {typeof ship.gst_percentage === "number" ? ship.gst_percentage : 0}%
                                 </td>
                                 <td className="px-4 py-2 max-w-[120px] truncate">
                                   ₹

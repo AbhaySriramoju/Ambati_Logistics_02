@@ -13,10 +13,6 @@ const shippingCosts: Record<string, number> = {
   Freight: 5000,
 };
 
-// GST and final amount constants
-const GST_RATE = 0.18; // 18% GST
-const MAX_PRICE = 100000000; // ₹10 crore
-
 interface Address {
   name: string;
   street: string;
@@ -81,13 +77,15 @@ function getCurrentISTISOString() {
   return `${year12}-${month12}-${day12} ${hour12}:${min12}:${sec12}+05:30`;
 }
 
+const MAX_PRICE = 100000000; // ₹10 crore
+
 const CreateShipment = () => {
   const navigate = useNavigate();
   // State for client code dropdown
   const [clientOptions, setClientOptions] = useState<{ id: number; client_code: string }[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientFetchError, setClientFetchError] = useState<string | null>(null);
-  // Add gst_amount and final_amount to form state
+  // Remove gst_amount and final_amount from form state
   const [form, setForm] = useState<any>({
     shipFrom: {
       name: "",
@@ -127,8 +125,8 @@ const CreateShipment = () => {
     shippingMethod: "Standard",
     totalWeight: 0,
     clientCode: "",
-    gst_amount: 0,
-    final_amount: 0,
+    // gst_amount: 0,
+    // final_amount: 0,
   });
 
   // Fetch client codes using Supabase client
@@ -256,17 +254,6 @@ const CreateShipment = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMsg, setErrorModalMsg] = useState("");
 
-  // Calculate GST and final amount whenever base_price changes
-  useEffect(() => {
-    const gst = form.base_price * GST_RATE;
-    const final = form.base_price + gst;
-    setForm((prev: any) => ({
-      ...prev,
-      gst_amount: gst,
-      final_amount: final,
-    }));
-  }, [form.base_price]);
-
   // Unified submit handler for create and edit
   const handleSubmit = async () => {
     setSubmitError(null); // Reset error before submit
@@ -387,8 +374,8 @@ const CreateShipment = () => {
         estimated_delivery_date: nullIfEmpty(form.deliveryDate),
         delivered_at: null, // You can set this if needed
         base_price: form.base_price,
-        gst_amount: form.gst_amount,
-        final_amount: form.final_amount,
+        // gst_amount: form.gst_amount,
+        // final_amount: form.final_amount,
         from_name_or_company: nullIfEmpty(form.shipFrom.name),
         from_contact_number: nullIfEmpty(form.shipFrom.contactNumber),
         from_email: nullIfEmpty(form.shipFrom.email),
@@ -472,8 +459,8 @@ const CreateShipment = () => {
       created_at: getCurrentISTISOString(),
       ...(user_id ? { user_id } : {}),
       base_price: form.base_price,
-      gst_amount: form.gst_amount,
-      final_amount: form.final_amount,
+      // gst_amount: form.gst_amount,
+      // final_amount: form.final_amount,
     };
     // Debug: log data before sending
     console.log("shipmentData", shipmentData);
@@ -1360,18 +1347,7 @@ const CreateShipment = () => {
                   </tbody>
                 </table>
                 {/* GST and Total Amount Section */}
-                {(() => {
-                  const gstRate = 0.18; // 18% GST
-                  const basePrice = form.base_price || 0;
-                  const gstAmount = basePrice * gstRate;
-                  const totalAmount = basePrice + gstAmount;
-                  return (
-                    <div className="mt-2 text-right">
-                      <div className="font-semibold text-blue-900">GST (18%): <span className="text-blue-700">₹{gstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                      <div className="font-bold text-lg text-blue-900">Total Amount: <span className="text-blue-700">₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
-                    </div>
-                  );
-                })()}
+                {/* Removed GST and Total Amount display as per request */}
               </div>
               <button
                 onClick={() => {
