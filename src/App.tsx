@@ -29,6 +29,7 @@ import PODLogin from "./pages/PODLogin";
 import PODPage from "./pages/PODPage";
 import ShipmentPaymentPage from "./pages/ShipmentPaymentPage";
 import ClientInvoicePage from "./pages/ClientInvoicePage";
+import ClientsPage from "./pages/ClientsPage";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -95,11 +96,17 @@ function App() {
             path="/staff"
             element={isLoggedIn ? <Staff /> : <Navigate to="/staff" replace />}
           />
+          <Route
+            path="/clients"
+            element={
+              isLoggedIn ? <ClientsPage /> : <Navigate to="/login" replace />
+            }
+          />
           {/* POD (Proof of Delivery) routes */}
           <Route path="/pod-login" element={<PODLogin />} />
           <Route path="/pod" element={<PODPage />} />
-        <Route path="/shipment-payment" element={<ShipmentPaymentPage />} />
-        <Route path="/client-invoice" element={<ClientInvoicePage />} />
+          <Route path="/shipment-payment" element={<ShipmentPaymentPage />} />
+          <Route path="/client-invoice" element={<ClientInvoicePage />} />
         </Routes>
       </main>
       <Footer isLoggedIn={isLoggedIn} />
