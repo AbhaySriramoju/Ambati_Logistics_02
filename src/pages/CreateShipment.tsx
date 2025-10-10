@@ -73,7 +73,7 @@ const MAX_PRICE = 100000000; // ₹10 crore
 const CreateShipment = () => {
   const navigate = useNavigate();
   // State for client code dropdown
-  const [clientOptions, setClientOptions] = useState<{ id: number; client_code: string }[]>([]);
+  const [clientOptions, setClientOptions] = useState<{ id: number; client_code: string; client_name: string }[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientFetchError, setClientFetchError] = useState<string | null>(null);
   // Remove gst_amount and final_amount from form state
@@ -131,7 +131,7 @@ const CreateShipment = () => {
         // const { data: { user } } = await mod.supabase.auth.getUser();
         const { data, error } = await mod.supabase
           .from("clients")
-          .select("id, client_code");
+          .select("id, client_code, client_name"); // <-- fetch client_name too
         if (error) throw error;
         if (isMounted) setClientOptions(data || []);
       } catch (err: any) {
@@ -592,7 +592,9 @@ const CreateShipment = () => {
           >
             <option value="">{loadingClients ? "Loading..." : clientFetchError ? "Failed to load client codes" : "Select Client Code"}</option>
             {clientOptions.map((client) => (
-              <option key={client.id} value={client.client_code}>{client.client_code}</option>
+              <option key={client.id} value={client.client_code}>
+                {client.client_code} - {client.client_name}
+              </option>
             ))}
           </select>
           {form.clientCode === "" && !loadingClients && !clientFetchError && (
