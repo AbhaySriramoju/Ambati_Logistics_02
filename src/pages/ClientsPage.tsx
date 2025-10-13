@@ -113,6 +113,26 @@ const ClientsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+      {/* Back Button */}
+      <button
+        onClick={() => window.history.back()}
+        className="mb-6 mt-6 sticky top-20 z-50 self-start inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-gray-700 hover:bg-gray-50 transition"
+      >
+        <svg
+          className="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Back
+      </button>
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-blue-700">Clients</h1>

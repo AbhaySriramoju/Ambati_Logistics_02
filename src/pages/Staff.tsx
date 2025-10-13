@@ -519,7 +519,7 @@ export default function Staff() {
               setSelectedUser(null);
             }}
             placeholder="Search users by name or email..."
-            className="border rounded px-3 py-2 w-full"
+            className="border rounded px-3 py-2 w-full mt-10"
           />
           {userSearchLoading && (
             <div className="text-xs text-gray-500 mt-2">Searching...</div>

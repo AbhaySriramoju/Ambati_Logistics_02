@@ -136,11 +136,16 @@ export default function Industries() {
                 </div>
                 <p className="text-gray-600 mb-6">"{testimonial.content}"</p>
                 <div className="flex items-center">
-                  <img
-                    src={testimonial.image}
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                  />
+                  {/* Use gender icon instead of image */}
+                  {testimonial.name === "Aishwarya" ? (
+                    <div className="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-2xl mr-4">
+                      <FaFemale />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mr-4">
+                      <FaMale />
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold">{testimonial.name}</p>
                     <p className="text-gray-500 text-sm">{testimonial.company}</p>

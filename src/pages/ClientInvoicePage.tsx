@@ -375,6 +375,26 @@ const ClientInvoicePage: React.FC = () => {
   // UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center p-4">
+      {/* Back Button */}
+      <button
+        onClick={() => window.history.back()}
+        className="mb-6 mt-6 sticky top-20 z-50 self-start inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-gray-700 hover:bg-gray-50 transition"
+      >
+        <svg
+          className="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Back
+      </button>
       <div className="w-full max-w-5xl bg-white rounded-2xl p-6 shadow-2xl border border-blue-100 mt-12 mb-12">
         <h2 className="text-3xl font-extrabold text-blue-700 mb-8 text-center">
           Client Invoices

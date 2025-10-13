@@ -4,6 +4,7 @@ import CustomSelect from "../components/CustomSelect";
 import Barcode from "react-barcode";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 
 // Shipping cost map
 const shippingCosts: Record<string, number> = {
@@ -121,31 +122,31 @@ const CreateShipment = () => {
   });
 
   // Fetch client codes using Supabase client
-  useEffect(() => {
-    let isMounted = true;
-    setLoadingClients(true);
-    setClientFetchError(null);
-    import("../lib/supabaseClient").then(async (mod) => {
-      try {
-        // Optionally, you can get the user session if needed
-        // const { data: { user } } = await mod.supabase.auth.getUser();
-        const { data, error } = await mod.supabase
-          .from("clients")
-          .select("id, client_code, client_name"); // <-- fetch client_name too
-        if (error) throw error;
-        if (isMounted) setClientOptions(data || []);
-      } catch (err: any) {
-        if (isMounted) {
-          setClientFetchError(err.message || "Failed to load client codes");
-          setClientOptions([]);
-        }
-      } finally {
-        if (isMounted) setLoadingClients(false);
-      }
-    });
-    return () => { isMounted = false; };
-  }, []);
+ useEffect(() => {
+  let isMounted = true;
+  const fetchClients = async () => {
+    try {
+      setLoadingClients(true);
+      setClientFetchError(null);
 
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, client_code, client_name");
+      if (error) throw error;
+      if (isMounted) setClientOptions(data || []);
+    } catch (err) {
+      if (isMounted) {
+        setClientFetchError(err.message || "Failed to load client codes");
+        setClientOptions([]);
+      }
+    } finally {
+      if (isMounted) setLoadingClients(false);
+    }
+  };
+
+  fetchClients();
+  return () => { isMounted = false; };
+}, []);
   // Inline error state for each field
   const [errors, setErrors] = useState<{
     shipFrom?: Partial<Record<keyof Address, string>>;
@@ -455,11 +456,12 @@ const CreateShipment = () => {
     };
     // Debug: log data before sending
     console.log("shipmentData", shipmentData);
-    const { data: shipment, error: shipmentError } = await import(
-      "../lib/supabaseClient"
-    ).then((mod) =>
-      mod.supabase.from("shipments").insert([shipmentData]).select().single()
-    );
+    // Use static supabase import for shipment insert
+    const { data: shipment, error: shipmentError } = await supabase
+      .from("shipments")
+      .insert([shipmentData])
+      .select()
+      .single();
     if (shipmentError) {
       let msg = shipmentError.message || "Failed to create shipment.";
       if (
@@ -494,13 +496,10 @@ const CreateShipment = () => {
           typeof pkg.price === "number" && pkg.price > 0 ? pkg.price : null, // ✅ FIXED
       }));
 
-      // Debug: log packages before sending
-      // console.log("formattedPackages", formattedPackages);
-      const { error: packageError } = await import(
-        "../lib/supabaseClient"
-      ).then((mod) =>
-        mod.supabase.from("shipment_items").insert(formattedPackages)
-      );
+      // Use static supabase import for package insert
+      const { error: packageError } = await supabase
+        .from("shipment_items")
+        .insert(formattedPackages);
       if (packageError) {
         let msg = packageError.message || "Failed to add packages.";
         setSubmitError(msg);
