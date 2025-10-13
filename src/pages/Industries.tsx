@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react';
+import { FaMale, FaFemale } from "react-icons/fa";
 
 export default function Industries() {
   const industries = [
@@ -50,18 +51,21 @@ export default function Industries() {
       company: "Tech Solutions Inc.",
       content:
         "AMBATI LOGISTICS has transformed our supply chain efficiency. Their innovative solutions and reliable service have been instrumental in our growth.",
+      image: "/assets/male_13281218.png",
     },
     {
       name: "Chaitanya",
       company: "Global Manufacturing Co.",
       content:
         "We've seen a 30% improvement in delivery times since partnering with AMBATI LOGISTICS. Their attention to detail and professional service is outstanding.",
+      image: "/assets/male_13281218.png",
     },
     {
       name: "Aishwarya",
       company: "E-commerce Express",
       content:
         "The level of transparency and reliability we get with AMBATI LOGISTICS is unmatched. They're not just a service provider, but a true business partner.",
+      image: "/assets/female_1443287.png",
     },
   ];
   return (
