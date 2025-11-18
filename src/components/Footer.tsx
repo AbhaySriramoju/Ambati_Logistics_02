@@ -28,6 +28,7 @@ export default function Footer({ isLoggedIn }: any) {
                 <li><Link to="/services" className="text-gray-400 hover:text-white">Services</Link></li>
                 <li><Link to="/industries" className="text-gray-400 hover:text-white">Industries</Link></li>
                 <li><Link to="/track" className="text-gray-400 hover:text-white">Track Shipment</Link></li>
+                <li><Link to="/clients-partners" className="text-gray-400 hover:text-white">Clients & Partners</Link></li>
               </ul>
             </div>
           )}
@@ -36,7 +37,7 @@ export default function Footer({ isLoggedIn }: any) {
             <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
             <ul className="space-y-2 text-gray-400">
               <li className="flex items-center space-x-2"><MapPin className="text-blue-400" /> <span>3-9-90 Sharadha Nagar, Hyderabad</span></li>
-              <li className="flex items-center space-x-2"><Phone className="text-blue-400" /> <span>+91-9177656116</span></li>
+              <li className="flex items-center space-x-2"><Phone className="text-blue-400" /> <span>+91-8297333338</span></li>
               <li className="flex items-center space-x-2"><Mail className="text-blue-400" /> <span>info@ambatilogistics.com</span></li>
             </ul>
           </div>

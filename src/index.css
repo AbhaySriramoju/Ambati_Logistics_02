@@ -24,5 +24,25 @@
     .text-shadow {
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
     }
+    
+    .scroll-banner {
+      animation: scrollBanner 12s linear infinite;
+      will-change: transform;
+      animation-timing-function: linear;
+    }
+    
+    @media (min-width: 768px) {
+      .scroll-banner {
+        animation-duration: 18s;
+      }
+    }
   }
   
+  @keyframes scrollBanner {
+    0% {
+      transform: translateX(100%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }

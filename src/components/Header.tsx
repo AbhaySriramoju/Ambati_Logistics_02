@@ -1,4 +1,4 @@
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Phone } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -17,6 +17,7 @@ export default function Header({ isLoggedIn, onLogout }: any) {
     { name: "Services", path: "/services" },
     { name: "Industries", path: "/industries" },
     { name: "Track Shipment", path: "/track" },
+    { name: "Clients & Partners", path: "/clients-partners" },
     { name: "Contact", path: "/contact" },
   ];
 
@@ -46,23 +47,33 @@ export default function Header({ isLoggedIn, onLogout }: any) {
                 </Link>
               ))}
 
-            {isLoggedIn ? (
-              <button
-                onClick={handleLogoutClick}
-                className="text-red-600 hover:text-red-800 flex items-center gap-1"
+            <div className="flex items-center space-x-4">
+              <a
+                href="tel:8297333338"
+                className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
               >
-                <LogOut size={18} />
-                Logout
-              </button>
-            ) : (
-              <Link
-                to="/login"
-                className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
-              >
-                <User className="w-5 h-5" />
-                <span>Login</span>
-              </Link>
-            )}
+                <Phone className="w-5 h-5" />
+                <span>8297333338</span>
+              </a>
+              
+              {isLoggedIn ? (
+                <button
+                  onClick={handleLogoutClick}
+                  className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -92,6 +103,16 @@ export default function Header({ isLoggedIn, onLogout }: any) {
                   {item.name}
                 </Link>
               ))}
+            
+            <a
+              href="tel:8297333338"
+              className="flex items-center space-x-2 py-2 text-gray-600 hover:text-blue-600"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Phone className="w-5 h-5" />
+              <span>8297333338</span>
+            </a>
+            
             {isLoggedIn ? (
               <button
                 onClick={handleLogoutClick}
