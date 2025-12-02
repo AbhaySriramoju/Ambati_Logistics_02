@@ -677,7 +677,7 @@ const ClientInvoicePage: React.FC = () => {
                         <tr>
                           <td
                             colSpan={7}
-                            className="text-center text-gray-400 py-8 bg-blue-50"
+                            className="text-center text-gray-400 py-8 "
                           >
                             No valid pending shipments found.
                           </td>
