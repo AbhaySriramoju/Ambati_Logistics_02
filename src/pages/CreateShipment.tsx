@@ -1065,7 +1065,7 @@ const CreateShipment = () => {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={pkg.weight}
+                    value={pkg.weight === 0 ? "" : pkg.weight ?? ""}
                     onChange={e => {
                       handlePackageChange(index, "weight", parseFloat(e.target.value));
                       setManualWeight(prev => ({ ...prev, [index]: true }));
@@ -1076,6 +1076,8 @@ const CreateShipment = () => {
                       }
                     }}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    title="Weight (kg)"
                   />
                   {errors.packages?.[index]?.weight && (
                     <div className="text-red-500 text-xs mt-1 flex items-center">
@@ -1121,15 +1123,11 @@ const CreateShipment = () => {
                   <input
                     type="number"
                     min="0"
-                    value={pkg.length}
-                    onChange={(e) =>
-                      handlePackageChange(
-                        index,
-                        "length",
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={pkg.length === 0 ? "" : pkg.length ?? ""}
+                    onChange={e => handlePackageChange(index, "length", parseFloat(e.target.value))}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    title="Length (cm)"
                   />
                 </div>
                 <div>
@@ -1139,15 +1137,11 @@ const CreateShipment = () => {
                   <input
                     type="number"
                     min="0"
-                    value={pkg.width}
-                    onChange={(e) =>
-                      handlePackageChange(
-                        index,
-                        "width",
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={pkg.width === 0 ? "" : pkg.width ?? ""}
+                    onChange={e => handlePackageChange(index, "width", parseFloat(e.target.value))}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    title="Width (cm)"
                   />
                 </div>
                 <div>
@@ -1157,15 +1151,11 @@ const CreateShipment = () => {
                   <input
                     type="number"
                     min="0"
-                    value={pkg.height}
-                    onChange={(e) =>
-                      handlePackageChange(
-                        index,
-                        "height",
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={pkg.height === 0 ? "" : pkg.height ?? ""}
+                    onChange={e => handlePackageChange(index, "height", parseFloat(e.target.value))}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    title="Height (cm)"
                   />
                 </div>
                 <div>
@@ -1176,15 +1166,11 @@ const CreateShipment = () => {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={pkg.value}
-                    onChange={(e) =>
-                      handlePackageChange(
-                        index,
-                        "value",
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={pkg.value === 0 ? "" : pkg.value ?? ""}
+                    onChange={e => handlePackageChange(index, "value", parseFloat(e.target.value))}
                     className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    title="Price (₹)"
                   />
                 </div>
               </div>

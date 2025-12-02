@@ -9,6 +9,7 @@ import {
   Plus,
   Pencil,
   Warehouse,
+  Mail,
 } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
@@ -776,6 +777,15 @@ const Dashboard = () => {
                   icon={<Users />}
                   label="Clients"
                   to="/clients"
+                />
+              </div>
+            )}
+            {(role === "admin" || role === "manager") && (
+              <div>
+                <SidebarItem
+                  icon={<Mail />}
+                  label="Messages"
+                  to="/messages"
                 />
               </div>
             )}

@@ -2,38 +2,35 @@ import React from "react";
 import SecurityBanner from "../components/SecurityBanner";
 
 const clients = [
-  { name: "Amazon India", logo: "/assets/clientA.png" },
-  { name: "Flipkart", logo: "/assets/clientB.png" },
-  { name: "Tata Steel", logo: "/assets/clientC.png" },
-  { name: "Apollo Hospitals", logo: "/assets/clientD.png" },
-  { name: "Reliance Retail", logo: "/assets/clientA.png" },
-  { name: "Maruti Suzuki", logo: "/assets/clientB.png" },
-  { name: "ITC Limited", logo: "/assets/clientC.png" },
-  { name: "DHL Express", logo: "/assets/clientD.png" },
+  { name: "Unimedex", logo: "/assets/unimedex.jpeg" },
+  { name: "Trefoil Packaging", logo: "/assets/Trefoil.jpeg" },
+  { name: "ASCS", logo: "/assets/ASCS.png" },
+  { name: "Sorvet", logo: "/assets/sorvet.png" },
+  { name: "Primus Remedies", logo: "/assets/primus_remedies.jpeg" },
 ];
 
 const testimonials = [
   {
     name: "Sandeep Kumar",
-    company: "Amazon India",
+    company: "",
     text: "Ambati Logistics has been a reliable partner for our supply chain needs. Their professionalism and timely deliveries are unmatched.",
     photo: "/assets/male_13281218.png"
   },
   {
     name: "Priya Sharma",
-    company: "Flipkart",
+    company: "",
     text: "We appreciate the transparency and efficiency Ambati brings to our logistics operations.",
     photo: "/assets/female_1443287.png"
   },
   {
     name: "Rahul Verma",
-    company: "Tata Steel",
+    company: "",
     text: "Their team is proactive and always ready to go the extra mile. Highly recommended for any business looking for logistics excellence.",
     photo: "/assets/male_13281218.png"
   },
   {
     name: "Anjali Mehta",
-    company: "Apollo Hospitals",
+    company: "",
     text: "Ambati Logistics ensures our medical supplies reach on time, every time. Their attention to detail is impressive.",
     photo: "/assets/female_1443287.png"
   },
@@ -49,13 +46,21 @@ export default function ClientsPartners() {
           <p className="text-center text-lg text-gray-600 mb-12">We are proud to serve industry leaders and innovative partners.</p>
           {/* Clients Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20">
-            {clients.map((client) => (
-              <div key={client.name} className="flex flex-col items-center">
-                <div className="bg-blue-50 rounded-full w-24 h-24 flex items-center justify-center mb-3 shadow-md">
-                  <img src={client.logo} alt={client.name} className="h-12 w-12 object-contain" />
+            {clients.map((client, idx) => (
+              <React.Fragment key={client.name}>
+                <div className="flex flex-col items-center">
+                  <div className="bg-blue-50 rounded-full w-24 h-24 flex items-center justify-center mb-3 shadow-md">
+                    <img src={client.logo} alt={client.name} className="h-104 w-104 object-contain rounded-full" />
+                  </div>
+                  <span className="text-blue-900 font-semibold text-lg">{client.name}</span>
                 </div>
-                <span className="text-blue-900 font-semibold text-lg">{client.name}</span>
-              </div>
+                {/* Add 'and more' text as a grid item after the last client */}
+                {idx === clients.length - 1 && (
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="px-5 py-2 rounded-full bg-gradient-to-r from-blue-700 via-blue-500 to-blue-300 text-white font-bold text-lg shadow-lg">and more</span>
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
           {/* Testimonials */}

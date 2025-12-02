@@ -10,6 +10,9 @@ interface Client {
   address: string;
   gstin: string;
   pan: string;
+  insurancenumber: string;
+  fuelsurcharge: string;
+  docketcharges: string;
 }
 
 const initialForm: Omit<Client, "id"> = {
@@ -20,6 +23,9 @@ const initialForm: Omit<Client, "id"> = {
   address: "",
   gstin: "",
   pan: "",
+  insurancenumber: "",
+  fuelsurcharge: "",
+  docketcharges: "",
 };
 
 const ClientsPage: React.FC = () => {
@@ -51,7 +57,7 @@ const ClientsPage: React.FC = () => {
   const validateForm = () => {
     const errors: Partial<typeof form> = {};
     Object.entries(form).forEach(([key, value]) => {
-      if (!value.trim()) errors[key as keyof typeof form] = "Required";
+     if (!(value ?? "").toString().trim() && ["client_code","client_name","contact_email","contact_phone","address","gstin","pan"].includes(key)) errors[key as keyof typeof form] = "Required";
     });
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -59,28 +65,35 @@ const ClientsPage: React.FC = () => {
 
   // Handle Save (Add/Edit)
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg("");
-    if (!validateForm()) return;
-    setSubmitLoading(true);
-    if (editingId) {
-      // Update
-      const { error } = await supabase
-        .from("clients")
-        .update(form)
-        .eq("id", editingId);
-      if (error) setErrorMsg(error.message || "Failed to update client.");
-    } else {
-      // Insert
-      const { error } = await supabase.from("clients").insert([form]);
-      if (error) setErrorMsg(error.message || "Failed to add client.");
-    }
-    setSubmitLoading(false);
-    setShowModal(false);
-    setEditingId(null);
-    setForm(initialForm);
-    fetchClients();
-  };
+  e.preventDefault();
+  setErrorMsg("");
+  if (!validateForm()) return;
+  setSubmitLoading(true);
+
+  // Clean form data: remove undefined/null keys
+  const cleanForm: Record<string, any> = {};
+  Object.entries(form).forEach(([key, value]) => {
+    cleanForm[key] = value ?? "";
+  });
+
+  if (editingId) {
+    // Update
+    const { error } = await supabase
+      .from("clients")
+      .update(cleanForm)
+      .eq("id", editingId);
+    if (error) setErrorMsg(error.message || "Failed to update client.");
+  } else {
+    // Insert
+    const { error } = await supabase.from("clients").insert([cleanForm]);
+    if (error) setErrorMsg(error.message || "Failed to add client.");
+  }
+  setSubmitLoading(false);
+  setShowModal(false);
+  setEditingId(null);
+  setForm(initialForm);
+  fetchClients();
+};
 
   // Handle Edit
   const handleEdit = (client: Client) => {
@@ -92,6 +105,9 @@ const ClientsPage: React.FC = () => {
       address: client.address,
       gstin: client.gstin,
       pan: client.pan,
+      insurancenumber: client.insurancenumber || "",
+      fuelsurcharge: client.fuelsurcharge || "",
+      docketcharges: client.docketcharges || "",
     });
     setEditingId(client.id);
     setShowModal(true);
@@ -214,7 +230,7 @@ const ClientsPage: React.FC = () => {
         {/* Add/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8 w-full max-w-md sm:max-w-lg md:max-w-xl relative max-h-[90vh] overflow-y-auto">
               <button
                 onClick={() => setShowModal(false)}
                 className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
@@ -232,12 +248,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.client_code}
-                    onChange={(e) =>
-                      setForm({ ...form, client_code: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.client_code ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, client_code: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.client_code ? "border-red-500" : ""}`}
+                    placeholder="Enter client code"
                   />
                   {formErrors.client_code && (
                     <div className="text-xs text-red-500">
@@ -252,12 +265,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.client_name}
-                    onChange={(e) =>
-                      setForm({ ...form, client_name: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.client_name ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, client_name: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.client_name ? "border-red-500" : ""}`}
+                    placeholder="Enter client name"
                   />
                   {formErrors.client_name && (
                     <div className="text-xs text-red-500">
@@ -272,12 +282,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="email"
                     value={form.contact_email}
-                    onChange={(e) =>
-                      setForm({ ...form, contact_email: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.contact_email ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.contact_email ? "border-red-500" : ""}`}
+                    placeholder="Enter client email"
                   />
                   {formErrors.contact_email && (
                     <div className="text-xs text-red-500">
@@ -292,12 +299,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.contact_phone}
-                    onChange={(e) =>
-                      setForm({ ...form, contact_phone: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.contact_phone ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.contact_phone ? "border-red-500" : ""}`}
+                    placeholder="Enter contact number"
                   />
                   {formErrors.contact_phone && (
                     <div className="text-xs text-red-500">
@@ -312,12 +316,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.address}
-                    onChange={(e) =>
-                      setForm({ ...form, address: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.address ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.address ? "border-red-500" : ""}`}
+                    placeholder="Enter address"
                   />
                   {formErrors.address && (
                     <div className="text-xs text-red-500">
@@ -332,12 +333,9 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.gstin}
-                    onChange={(e) =>
-                      setForm({ ...form, gstin: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.gstin ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, gstin: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.gstin ? "border-red-500" : ""}`}
+                    placeholder="Enter GSTIN number"
                   />
                   {formErrors.gstin && (
                     <div className="text-xs text-red-500">
@@ -352,18 +350,51 @@ const ClientsPage: React.FC = () => {
                   <input
                     type="text"
                     value={form.pan}
-                    onChange={(e) =>
-                      setForm({ ...form, pan: e.target.value })
-                    }
-                    className={`w-full border rounded px-3 py-2 ${
-                      formErrors.pan ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) => setForm({ ...form, pan: e.target.value })}
+                    className={`w-full border rounded px-3 py-2 ${formErrors.pan ? "border-red-500" : ""}`}
+                    placeholder="Enter PAN number"
                   />
                   {formErrors.pan && (
                     <div className="text-xs text-red-500">
                       {formErrors.pan}
                     </div>
                   )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Insurance Number
+                  </label>
+                  <input
+                    type="text"
+                    value={form.insurancenumber}
+                    onChange={(e) => setForm({ ...form, insurancenumber: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="Enter insurance number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Fuel Surcharge
+                  </label>
+                  <input
+                    type="text"
+                    value={form.fuelsurcharge}
+                    onChange={(e) => setForm({ ...form, fuelsurcharge: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="Enter fuel surcharge"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Docket Charges
+                  </label>
+                  <input
+                    type="text"
+                    value={form.docketcharges}
+                    onChange={(e) => setForm({ ...form, docketcharges: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="Enter docket charges"
+                  />
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <button

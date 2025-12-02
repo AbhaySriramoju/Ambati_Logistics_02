@@ -31,6 +31,7 @@ import ShipmentPaymentPage from "./pages/ShipmentPaymentPage";
 import ClientInvoicePage from "./pages/ClientInvoicePage";
 import ClientsPage from "./pages/ClientsPage";
 import ClientsPartners from "./pages/ClientsPartners";
+import Messages from "./pages/Messages";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -104,8 +105,10 @@ function App() {
             }
           />
           <Route
-            path="/clients-partners"
-            element={<ClientsPartners />}
+            path="/messages"
+            element={
+              isLoggedIn ? <Messages /> : <Navigate to="/login" replace />
+            }
           />
           {/* POD (Proof of Delivery) routes */}
           <Route path="/pod-login" element={<PODLogin />} />

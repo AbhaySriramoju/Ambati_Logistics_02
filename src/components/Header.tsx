@@ -48,14 +48,17 @@ export default function Header({ isLoggedIn, onLogout }: any) {
               ))}
 
             <div className="flex items-center space-x-4">
-              <a
-                href="tel:8297333338"
-                className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                <Phone className="w-5 h-5" />
-                <span>8297333338</span>
-              </a>
-              
+              {/* Show phone number only if not logged in */}
+              {!isLoggedIn && (
+                <a
+                  href="tel:8297333338"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
+                >
+                  <Phone className="w-5 h-5" />
+                  <span>8297333338</span>
+                </a>
+              )}
+
               {isLoggedIn ? (
                 <button
                   onClick={handleLogoutClick}
@@ -103,16 +106,19 @@ export default function Header({ isLoggedIn, onLogout }: any) {
                   {item.name}
                 </Link>
               ))}
-            
-            <a
-              href="tel:8297333338"
-              className="flex items-center space-x-2 py-2 text-gray-600 hover:text-blue-600"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Phone className="w-5 h-5" />
-              <span>8297333338</span>
-            </a>
-            
+
+            {/* Show phone number only if not logged in */}
+            {!isLoggedIn && (
+              <a
+                href="tel:8297333338"
+                className="flex items-center space-x-2 py-2 text-gray-600 hover:text-blue-600"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Phone className="w-5 h-5" />
+                <span>8297333338</span>
+              </a>
+            )}
+
             {isLoggedIn ? (
               <button
                 onClick={handleLogoutClick}
