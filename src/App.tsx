@@ -105,6 +105,10 @@ function App() {
             }
           />
           <Route
+            path="/clients-partners"
+            element={<ClientsPartners />}
+          />
+          <Route
             path="/messages"
             element={
               isLoggedIn ? <Messages /> : <Navigate to="/login" replace />
