@@ -160,35 +160,47 @@ const ClientInvoicePage: React.FC = () => {
   );
 
   // --- Editable state for all charge fields ---
-  const [editableShipments, setEditableShipments] = useState<Record<string, {
-    base_price: number;
-    gst_percentage: number;
-    fuel_charge: number;
-    docket_charge: number;
-    handling_charge: number;
-    pickup_charge: number;
-    other_charge: number;
-  }>>({});
+  const [editableShipments, setEditableShipments] = useState<
+    Record<
+      string,
+      {
+        base_price: number;
+        gst_percentage: number;
+        fuel_charge: number;
+        docket_charge: number;
+        handling_charge: number;
+        pickup_charge: number;
+        other_charge: number;
+      }
+    >
+  >({});
 
   // --- Update editableShipments when fetching pending shipments ---
   useEffect(() => {
-    const editable: Record<string, {
-      base_price: number;
-      gst_percentage: number;
-      fuel_charge: number;
-      docket_charge: number;
-      handling_charge: number;
-      pickup_charge: number;
-      other_charge: number;
-    }> = {};
+    const editable: Record<
+      string,
+      {
+        base_price: number;
+        gst_percentage: number;
+        fuel_charge: number;
+        docket_charge: number;
+        handling_charge: number;
+        pickup_charge: number;
+        other_charge: number;
+      }
+    > = {};
     pendingShipments.forEach((s) => {
       editable[s.id] = {
         base_price: typeof s.base_price === "number" ? s.base_price : 0,
-        gst_percentage: typeof s.gst_percentage === "number" ? s.gst_percentage : 0,
+        gst_percentage:
+          typeof s.gst_percentage === "number" ? s.gst_percentage : 0,
         fuel_charge: typeof s.fuel_charge === "number" ? s.fuel_charge : 0,
-        docket_charge: typeof s.docket_charge === "number" ? s.docket_charge : 0,
-        handling_charge: typeof s.handling_charge === "number" ? s.handling_charge : 0,
-        pickup_charge: typeof s.pickup_charge === "number" ? s.pickup_charge : 0,
+        docket_charge:
+          typeof s.docket_charge === "number" ? s.docket_charge : 0,
+        handling_charge:
+          typeof s.handling_charge === "number" ? s.handling_charge : 0,
+        pickup_charge:
+          typeof s.pickup_charge === "number" ? s.pickup_charge : 0,
         other_charge: typeof s.other_charge === "number" ? s.other_charge : 0,
       };
     });
@@ -198,7 +210,7 @@ const ClientInvoicePage: React.FC = () => {
   // --- Editable input handlers ---
   const handleEditShipmentField = (
     id: string,
-    field: keyof typeof editableShipments[string],
+    field: keyof (typeof editableShipments)[string],
     value: string
   ) => {
     setEditableShipments((prev) => ({
@@ -215,13 +227,27 @@ const ClientInvoicePage: React.FC = () => {
     for (const id of selectedShipments) {
       const s = editableShipments[id] || {};
       if (
-        typeof s.base_price !== "number" || isNaN(s.base_price) || s.base_price <= 0 ||
-        typeof s.gst_percentage !== "number" || isNaN(s.gst_percentage) || s.gst_percentage < 0 ||
-        typeof s.fuel_charge !== "number" || isNaN(s.fuel_charge) || s.fuel_charge < 0 ||
-        typeof s.docket_charge !== "number" || isNaN(s.docket_charge) || s.docket_charge < 0 ||
-        typeof s.handling_charge !== "number" || isNaN(s.handling_charge) || s.handling_charge < 0 ||
-        typeof s.pickup_charge !== "number" || isNaN(s.pickup_charge) || s.pickup_charge < 0 ||
-        typeof s.other_charge !== "number" || isNaN(s.other_charge) || s.other_charge < 0
+        typeof s.base_price !== "number" ||
+        isNaN(s.base_price) ||
+        s.base_price <= 0 ||
+        typeof s.gst_percentage !== "number" ||
+        isNaN(s.gst_percentage) ||
+        s.gst_percentage < 0 ||
+        typeof s.fuel_charge !== "number" ||
+        isNaN(s.fuel_charge) ||
+        s.fuel_charge < 0 ||
+        typeof s.docket_charge !== "number" ||
+        isNaN(s.docket_charge) ||
+        s.docket_charge < 0 ||
+        typeof s.handling_charge !== "number" ||
+        isNaN(s.handling_charge) ||
+        s.handling_charge < 0 ||
+        typeof s.pickup_charge !== "number" ||
+        isNaN(s.pickup_charge) ||
+        s.pickup_charge < 0 ||
+        typeof s.other_charge !== "number" ||
+        isNaN(s.other_charge) ||
+        s.other_charge < 0
       ) {
         return false;
       }
@@ -234,15 +260,36 @@ const ClientInvoicePage: React.FC = () => {
     const updatedShipments = pendingShipments.map((s) => {
       const edit = editableShipments[s.id] || {};
       // Default all charges to 0 if empty/undefined
-      const base = typeof edit.base_price === "number" && !isNaN(edit.base_price) ? edit.base_price : s.base_price || 0;
-      const gstPerc = typeof edit.gst_percentage === "number" && !isNaN(edit.gst_percentage) ? edit.gst_percentage : s.gst_percentage || 0;
-      const fuel = typeof edit.fuel_charge === "number" && !isNaN(edit.fuel_charge) ? edit.fuel_charge : s.fuel_charge || 0;
-      const docket = typeof edit.docket_charge === "number" && !isNaN(edit.docket_charge) ? edit.docket_charge : s.docket_charge || 0;
-      const handling = typeof edit.handling_charge === "number" && !isNaN(edit.handling_charge) ? edit.handling_charge : s.handling_charge || 0;
-      const pickup = typeof edit.pickup_charge === "number" && !isNaN(edit.pickup_charge) ? edit.pickup_charge : s.pickup_charge || 0;
-      const other = typeof edit.other_charge === "number" && !isNaN(edit.other_charge) ? edit.other_charge : s.other_charge || 0;
+      const base =
+        typeof edit.base_price === "number" && !isNaN(edit.base_price)
+          ? edit.base_price
+          : s.base_price || 0;
+      const gstPerc =
+        typeof edit.gst_percentage === "number" && !isNaN(edit.gst_percentage)
+          ? edit.gst_percentage
+          : s.gst_percentage || 0;
+      const fuel =
+        typeof edit.fuel_charge === "number" && !isNaN(edit.fuel_charge)
+          ? edit.fuel_charge
+          : s.fuel_charge || 0;
+      const docket =
+        typeof edit.docket_charge === "number" && !isNaN(edit.docket_charge)
+          ? edit.docket_charge
+          : s.docket_charge || 0;
+      const handling =
+        typeof edit.handling_charge === "number" && !isNaN(edit.handling_charge)
+          ? edit.handling_charge
+          : s.handling_charge || 0;
+      const pickup =
+        typeof edit.pickup_charge === "number" && !isNaN(edit.pickup_charge)
+          ? edit.pickup_charge
+          : s.pickup_charge || 0;
+      const other =
+        typeof edit.other_charge === "number" && !isNaN(edit.other_charge)
+          ? edit.other_charge
+          : s.other_charge || 0;
       const totalBeforeGst = base + fuel + docket + handling + pickup + other;
-      const gst = +(totalBeforeGst * gstPerc / 100).toFixed(2);
+      const gst = +((totalBeforeGst * gstPerc) / 100).toFixed(2);
       const final = +(totalBeforeGst + gst).toFixed(2);
       return {
         ...s,
@@ -259,19 +306,31 @@ const ClientInvoicePage: React.FC = () => {
     });
     const base = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
+      .reduce(
+        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
+        0
+      );
     const gst = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
+      .reduce(
+        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
+        0
+      );
     const grand = updatedShipments
       .filter((s) => selectedShipments.includes(s.id))
-      .reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
+      .reduce(
+        (sum, s) =>
+          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
+        0
+      );
     setTotals({ base, gst, grand });
     // Update previewData if open
     if (showPreview && previewData) {
       setPreviewData({
         ...previewData,
-        shipments: updatedShipments.filter((s) => selectedShipments.includes(s.id)),
+        shipments: updatedShipments.filter((s) =>
+          selectedShipments.includes(s.id)
+        ),
         totals: { base, gst, grand },
       });
     }
@@ -315,7 +374,8 @@ const ClientInvoicePage: React.FC = () => {
     if (!validateEditableShipments()) {
       setToast({
         type: "error",
-        message: "Please enter valid Base Price and GST Percentage for all selected shipments.",
+        message:
+          "Please enter valid Base Price and GST Percentage for all selected shipments.",
       });
       setLoading(false);
       return;
@@ -329,15 +389,36 @@ const ClientInvoicePage: React.FC = () => {
     // Use new calculation for each shipment
     const sanitizedShipments = eligibleShipments.map((s) => {
       const edit = editableShipments[s.id] || {};
-      const base = typeof edit.base_price === "number" && !isNaN(edit.base_price) ? edit.base_price : s.base_price || 0;
-      const gstPerc = typeof edit.gst_percentage === "number" && !isNaN(edit.gst_percentage) ? edit.gst_percentage : s.gst_percentage || 0;
-      const fuel = typeof edit.fuel_charge === "number" && !isNaN(edit.fuel_charge) ? edit.fuel_charge : s.fuel_charge || 0;
-      const docket = typeof edit.docket_charge === "number" && !isNaN(edit.docket_charge) ? edit.docket_charge : s.docket_charge || 0;
-      const handling = typeof edit.handling_charge === "number" && !isNaN(edit.handling_charge) ? edit.handling_charge : s.handling_charge || 0;
-      const pickup = typeof edit.pickup_charge === "number" && !isNaN(edit.pickup_charge) ? edit.pickup_charge : s.pickup_charge || 0;
-      const other = typeof edit.other_charge === "number" && !isNaN(edit.other_charge) ? edit.other_charge : s.other_charge || 0;
+      const base =
+        typeof edit.base_price === "number" && !isNaN(edit.base_price)
+          ? edit.base_price
+          : s.base_price || 0;
+      const gstPerc =
+        typeof edit.gst_percentage === "number" && !isNaN(edit.gst_percentage)
+          ? edit.gst_percentage
+          : s.gst_percentage || 0;
+      const fuel =
+        typeof edit.fuel_charge === "number" && !isNaN(edit.fuel_charge)
+          ? edit.fuel_charge
+          : s.fuel_charge || 0;
+      const docket =
+        typeof edit.docket_charge === "number" && !isNaN(edit.docket_charge)
+          ? edit.docket_charge
+          : s.docket_charge || 0;
+      const handling =
+        typeof edit.handling_charge === "number" && !isNaN(edit.handling_charge)
+          ? edit.handling_charge
+          : s.handling_charge || 0;
+      const pickup =
+        typeof edit.pickup_charge === "number" && !isNaN(edit.pickup_charge)
+          ? edit.pickup_charge
+          : s.pickup_charge || 0;
+      const other =
+        typeof edit.other_charge === "number" && !isNaN(edit.other_charge)
+          ? edit.other_charge
+          : s.other_charge || 0;
       const totalBeforeGst = base + fuel + docket + handling + pickup + other;
-      const gst = +(totalBeforeGst * gstPerc / 100).toFixed(2);
+      const gst = +((totalBeforeGst * gstPerc) / 100).toFixed(2);
       const final = +(totalBeforeGst + gst).toFixed(2);
       return {
         ...s,
@@ -355,7 +436,8 @@ const ClientInvoicePage: React.FC = () => {
     if (sanitizedShipments.length === 0) {
       setToast({
         type: "error",
-        message: "Selected shipments have already been invoiced or have invalid price.",
+        message:
+          "Selected shipments have already been invoiced or have invalid price.",
       });
       setLoading(false);
       return;
@@ -374,11 +456,24 @@ const ClientInvoicePage: React.FC = () => {
         const lastNum = lastInvoice[0].invoice_number.split("-").pop();
         nextNumber = parseInt(lastNum, 10) + 1;
       }
-      const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(4, "0")}`;
+      const invoiceNumber = `${clientCode}-${String(nextNumber).padStart(
+        4,
+        "0"
+      )}`;
       // 2. Create invoice record with correct column mapping
-      const totalBase = sanitizedShipments.reduce((sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0), 0);
-      const totalGst = sanitizedShipments.reduce((sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0), 0);
-      const totalAmount = sanitizedShipments.reduce((sum, s) => sum + (typeof s.final_amount === "number" ? s.final_amount : 0), 0);
+      const totalBase = sanitizedShipments.reduce(
+        (sum, s) => sum + (typeof s.base_price === "number" ? s.base_price : 0),
+        0
+      );
+      const totalGst = sanitizedShipments.reduce(
+        (sum, s) => sum + (typeof s.gst_amount === "number" ? s.gst_amount : 0),
+        0
+      );
+      const totalAmount = sanitizedShipments.reduce(
+        (sum, s) =>
+          sum + (typeof s.final_amount === "number" ? s.final_amount : 0),
+        0
+      );
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
@@ -483,15 +578,22 @@ const ClientInvoicePage: React.FC = () => {
           if (mounted) setGroupedCharges(groupChargesByShipment(charges));
         })
         .finally(() => mounted && setLoading(false));
-      return () => { mounted = false; };
+      return () => {
+        mounted = false;
+      };
     }, [shipmentIds]);
 
-    if (loading) return <div className="text-blue-500 my-4">Loading charge breakdown...</div>;
+    if (loading)
+      return (
+        <div className="text-blue-500 my-4">Loading charge breakdown...</div>
+      );
     if (!Object.keys(groupedCharges).length) return null;
 
     return (
       <div className="my-8 print:break-before-page">
-        <h2 className="text-xl font-bold text-blue-700 mb-4">Detailed Charge Breakdown</h2>
+        <h2 className="text-xl font-bold text-blue-700 mb-4">
+          Detailed Charge Breakdown
+        </h2>
         {shipmentIds.map((sid) => {
           const charges = groupedCharges[sid];
           if (!charges || !charges.length) return null;
@@ -506,8 +608,13 @@ const ClientInvoicePage: React.FC = () => {
           if (!hasExtras) return null;
           return (
             <div key={sid} className="mb-6">
-              <div className="font-semibold text-blue-600 mb-2">Shipment ID: {sid}</div>
-              <table className="min-w-[300px] w-full border rounded-lg mb-2 text-sm" style={{ borderCollapse: "collapse" }}>
+              <div className="font-semibold text-blue-600 mb-2">
+                Shipment ID: {sid}
+              </div>
+              <table
+                className="min-w-[300px] w-full border rounded-lg mb-2 text-sm"
+                style={{ borderCollapse: "collapse" }}
+              >
                 <thead>
                   <tr className="bg-blue-50 text-blue-700 font-bold">
                     <th className="px-4 py-2 border">Charge Name</th>
@@ -520,7 +627,9 @@ const ClientInvoicePage: React.FC = () => {
                       return (
                         <tr key={key}>
                           <td className="px-4 py-2 border">{label}</td>
-                          <td className="px-4 py-2 border">{charge[key] ? `${charge[key]}%` : "0%"}</td>
+                          <td className="px-4 py-2 border">
+                            {charge[key] ? `${charge[key]}%` : "0%"}
+                          </td>
                         </tr>
                       );
                     }
@@ -528,7 +637,12 @@ const ClientInvoicePage: React.FC = () => {
                       return (
                         <tr key={key}>
                           <td className="px-4 py-2 border">{label}</td>
-                          <td className="px-4 py-2 border">₹{Number(charge[key]).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                          <td className="px-4 py-2 border">
+                            ₹
+                            {Number(charge[key]).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
                         </tr>
                       );
                     }
@@ -537,7 +651,8 @@ const ClientInvoicePage: React.FC = () => {
                   <tr className="font-bold bg-blue-100">
                     <td className="px-4 py-2 border">Grand Total</td>
                     <td className="px-4 py-2 border">
-                      ₹{(
+                      ₹
+                      {(
                         (Number(charge.base_price) || 0) +
                         (Number(charge.fuel_charge) || 0) +
                         (Number(charge.docket_charge) || 0) +
@@ -685,12 +800,25 @@ const ClientInvoicePage: React.FC = () => {
                       ) : (
                         validPendingShipments.map((ship) => {
                           const edit = editableShipments[ship.id] || {};
-                          const base = typeof edit.base_price === "number" ? edit.base_price : ship.base_price || 0;
-                          const gstPerc = typeof edit.gst_percentage === "number" ? edit.gst_percentage : ship.gst_percentage || 0;
-                          const gst = +(base * gstPerc / 100).toFixed(2);
+                          const base =
+                            typeof edit.base_price === "number"
+                              ? edit.base_price
+                              : ship.base_price || 0;
+                          const gstPerc =
+                            typeof edit.gst_percentage === "number"
+                              ? edit.gst_percentage
+                              : ship.gst_percentage || 0;
+                          const gst = +((base * gstPerc) / 100).toFixed(2);
                           const final = +(base + gst).toFixed(2);
                           return (
-                            <tr key={ship.id} className={`border-b ${selectedShipments.includes(ship.id) ? "bg-blue-50" : "hover:bg-gray-50"} transition`}>
+                            <tr
+                              key={ship.id}
+                              className={`border-b ${
+                                selectedShipments.includes(ship.id)
+                                  ? "bg-blue-50"
+                                  : "hover:bg-gray-50"
+                              } transition`}
+                            >
                               <td className="px-4 py-3">
                                 <input
                                   type="checkbox"
@@ -717,10 +845,16 @@ const ClientInvoicePage: React.FC = () => {
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={base}
-                                  onChange={e => handleEditShipmentField(ship.id, "base_price", e.target.value)}
+                                  value={base === 0 ? "" : base}
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "base_price",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-24 border rounded px-2 py-1"
-                                  placeholder="Base Price"
+                                  placeholder="0"
                                   title="Base Price"
                                 />
                               </td>
@@ -730,8 +864,20 @@ const ClientInvoicePage: React.FC = () => {
                                   min={0}
                                   max={100}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.fuel_charge === 0 ? "" : editableShipments[ship.id]?.fuel_charge ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "fuel_charge", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]?.fuel_charge ===
+                                    0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.fuel_charge ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "fuel_charge",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-20 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="Fuel"
@@ -742,8 +888,20 @@ const ClientInvoicePage: React.FC = () => {
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.docket_charge === 0 ? "" : editableShipments[ship.id]?.docket_charge ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "docket_charge", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]
+                                      ?.docket_charge === 0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.docket_charge ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "docket_charge",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-20 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="Docket"
@@ -754,8 +912,20 @@ const ClientInvoicePage: React.FC = () => {
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.handling_charge === 0 ? "" : editableShipments[ship.id]?.handling_charge ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "handling_charge", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]
+                                      ?.handling_charge === 0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.handling_charge ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "handling_charge",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-20 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="Handling"
@@ -766,8 +936,20 @@ const ClientInvoicePage: React.FC = () => {
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.pickup_charge === 0 ? "" : editableShipments[ship.id]?.pickup_charge ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "pickup_charge", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]
+                                      ?.pickup_charge === 0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.pickup_charge ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "pickup_charge",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-20 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="Pickup"
@@ -778,8 +960,20 @@ const ClientInvoicePage: React.FC = () => {
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.other_charge === 0 ? "" : editableShipments[ship.id]?.other_charge ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "other_charge", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]?.other_charge ===
+                                    0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.other_charge ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "other_charge",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-20 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="Other"
@@ -791,16 +985,40 @@ const ClientInvoicePage: React.FC = () => {
                                   min={0}
                                   max={100}
                                   step="0.01"
-                                  value={editableShipments[ship.id]?.gst_percentage === 0 ? "" : editableShipments[ship.id]?.gst_percentage ?? ""}
-                                  onChange={e => handleEditShipmentField(ship.id, "gst_percentage", e.target.value)}
+                                  value={
+                                    editableShipments[ship.id]
+                                      ?.gst_percentage === 0
+                                      ? ""
+                                      : editableShipments[ship.id]
+                                          ?.gst_percentage ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    handleEditShipmentField(
+                                      ship.id,
+                                      "gst_percentage",
+                                      e.target.value
+                                    )
+                                  }
                                   className="w-16 border rounded px-2 py-1"
                                   placeholder="0"
                                   title="GST Percentage"
                                 />
-                                <span className="ml-1 text-xs text-gray-500">%</span>
+                                <span className="ml-1 text-xs text-gray-500">
+                                  %
+                                </span>
                               </td>
-                              <td className="px-4 py-3">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3">
+                                ₹
+                                {gst.toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="px-4 py-3">
+                                ₹
+                                {final.toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
                               <td className="px-4 py-3">
                                 {ship.invoice_status}
                               </td>
@@ -858,13 +1076,7 @@ const ClientInvoicePage: React.FC = () => {
                   >
                     Cancel
                   </button>
-                  <button
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
-                    onClick={handlePreview}
-                    disabled={selectedShipments.length === 0 || loading}
-                  >
-                    Preview Invoice
-                  </button>
+
                   <button
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition text-lg"
                     onClick={handleRaiseInvoice}
@@ -931,30 +1143,106 @@ const ClientInvoicePage: React.FC = () => {
                         ) : (
                           previewData.shipments.map((ship) => {
                             // Use new calculation for display
-                            const base = typeof ship.base_price === "number" ? ship.base_price : 0;
-                            const fuel = typeof ship.fuel_charge === "number" ? ship.fuel_charge : 0;
-                            const docket = typeof ship.docket_charge === "number" ? ship.docket_charge : 0;
-                            const handling = typeof ship.handling_charge === "number" ? ship.handling_charge : 0;
-                            const pickup = typeof ship.pickup_charge === "number" ? ship.pickup_charge : 0;
-                            const other = typeof ship.other_charge === "number" ? ship.other_charge : 0;
-                            const gstPerc = typeof ship.gst_percentage === "number" ? ship.gst_percentage : 0;
-                            const totalBeforeGst = base + fuel + docket + handling + pickup + other;
-                            const gst = +(totalBeforeGst * gstPerc / 100).toFixed(2);
+                            const base =
+                              typeof ship.base_price === "number"
+                                ? ship.base_price
+                                : 0;
+                            const fuel =
+                              typeof ship.fuel_charge === "number"
+                                ? ship.fuel_charge
+                                : 0;
+                            const docket =
+                              typeof ship.docket_charge === "number"
+                                ? ship.docket_charge
+                                : 0;
+                            const handling =
+                              typeof ship.handling_charge === "number"
+                                ? ship.handling_charge
+                                : 0;
+                            const pickup =
+                              typeof ship.pickup_charge === "number"
+                                ? ship.pickup_charge
+                                : 0;
+                            const other =
+                              typeof ship.other_charge === "number"
+                                ? ship.other_charge
+                                : 0;
+                            const gstPerc =
+                              typeof ship.gst_percentage === "number"
+                                ? ship.gst_percentage
+                                : 0;
+                            const totalBeforeGst =
+                              base + fuel + docket + handling + pickup + other;
+                            const gst = +(
+                              (totalBeforeGst * gstPerc) /
+                              100
+                            ).toFixed(2);
                             const final = +(totalBeforeGst + gst).toFixed(2);
                             return (
                               <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                <td className="px-4 py-2">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{fuel.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{docket.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{handling.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{pickup.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{other.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[80px] truncate">{gstPerc}%</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 font-mono">
+                                  {ship.shipment_id || ship.id.slice(0, 8)}
+                                </td>
+                                <td className="px-4 py-2">
+                                  {new Date(ship.created_at).toLocaleDateString(
+                                    "en-IN",
+                                    { timeZone: "Asia/Kolkata" }
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {base.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {fuel.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {docket.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {handling.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {pickup.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {other.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[80px] truncate">
+                                  {gstPerc}%
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {gst.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {final.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {ship.invoice_status}
+                                </td>
                               </tr>
                             );
                           })
@@ -972,7 +1260,8 @@ const ClientInvoicePage: React.FC = () => {
                     <div className="font-semibold text-gray-700">
                       Total Base Price:{" "}
                       <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
-                        ₹{previewData.totals.base.toLocaleString("en-IN", {
+                        ₹
+                        {previewData.totals.base.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -981,7 +1270,8 @@ const ClientInvoicePage: React.FC = () => {
                     <div className="font-semibold text-gray-700">
                       Total GST:{" "}
                       <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
-                        ₹{previewData.totals.gst.toLocaleString("en-IN", {
+                        ₹
+                        {previewData.totals.gst.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -990,7 +1280,8 @@ const ClientInvoicePage: React.FC = () => {
                     <div className="font-bold text-lg text-blue-900">
                       Grand Total:{" "}
                       <span className="text-blue-700 max-w-[120px] truncate inline-block align-bottom">
-                        ₹{previewData.totals.grand.toLocaleString("en-IN", {
+                        ₹
+                        {previewData.totals.grand.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -1112,9 +1403,13 @@ const ClientInvoicePage: React.FC = () => {
                                     <!-- Billed To -->
                                     <div style=\"flex: 1; border:1px solid #e3e3e3; border-radius:8px; padding:16px;\">
                                       <h3 style=\"margin-bottom: 8px; color: #2563eb;\">Billed To</h3>
-                                      <div><strong>${clientDetails.name || ""}</strong></div>
+                                      <div><strong>${
+                                        clientDetails.name || ""
+                                      }</strong></div>
                                       <div>${clientDetails.address || ""}</div>
-                                      <div>GSTIN: ${clientDetails.gstin || ""}</div>
+                                      <div>GSTIN: ${
+                                        clientDetails.gstin || ""
+                                      }</div>
                                       <div>PAN: ${clientDetails.pan || ""}</div>
                                     </div>
                                   </div>
@@ -1157,15 +1452,49 @@ const ClientInvoicePage: React.FC = () => {
                                             typeof ship.base_price === "number"
                                               ? ship.base_price
                                               : 0;
-                                          const fuel = typeof ship.fuel_charge === "number" ? ship.fuel_charge : 0;
-                                          const docket = typeof ship.docket_charge === "number" ? ship.docket_charge : 0;
-                                          const handling = typeof ship.handling_charge === "number" ? ship.handling_charge : 0;
-                                          const pickup = typeof ship.pickup_charge === "number" ? ship.pickup_charge : 0;
-                                          const other = typeof ship.other_charge === "number" ? ship.other_charge : 0;
-                                          const gstPerc = typeof ship.gst_percentage === "number" ? ship.gst_percentage : 0;
-                                          const totalBeforeGst = base + fuel + docket + handling + pickup + other;
-                                          const gst = +(totalBeforeGst * gstPerc / 100).toFixed(2);
-                                          const final = +(totalBeforeGst + gst).toFixed(2);
+                                          const fuel =
+                                            typeof ship.fuel_charge === "number"
+                                              ? ship.fuel_charge
+                                              : 0;
+                                          const docket =
+                                            typeof ship.docket_charge ===
+                                            "number"
+                                              ? ship.docket_charge
+                                              : 0;
+                                          const handling =
+                                            typeof ship.handling_charge ===
+                                            "number"
+                                              ? ship.handling_charge
+                                              : 0;
+                                          const pickup =
+                                            typeof ship.pickup_charge ===
+                                            "number"
+                                              ? ship.pickup_charge
+                                              : 0;
+                                          const other =
+                                            typeof ship.other_charge ===
+                                            "number"
+                                              ? ship.other_charge
+                                              : 0;
+                                          const gstPerc =
+                                            typeof ship.gst_percentage ===
+                                            "number"
+                                              ? ship.gst_percentage
+                                              : 0;
+                                          const totalBeforeGst =
+                                            base +
+                                            fuel +
+                                            docket +
+                                            handling +
+                                            pickup +
+                                            other;
+                                          const gst = +(
+                                            (totalBeforeGst * gstPerc) /
+                                            100
+                                          ).toFixed(2);
+                                          const final = +(
+                                            totalBeforeGst + gst
+                                          ).toFixed(2);
                                           return `
                                             <tr>
                                               <td style=\"border:1px solid #ccc;padding:8px;\">${
@@ -1434,30 +1763,106 @@ const ClientInvoicePage: React.FC = () => {
                           </tr>
                         ) : (
                           invoiceModalData.shipments.map((ship) => {
-                            const base = typeof ship.base_price === "number" ? ship.base_price : 0;
-                            const fuel = typeof ship.fuel_charge === "number" ? ship.fuel_charge : 0;
-                            const docket = typeof ship.docket_charge === "number" ? ship.docket_charge : 0;
-                            const handling = typeof ship.handling_charge === "number" ? ship.handling_charge : 0;
-                            const pickup = typeof ship.pickup_charge === "number" ? ship.pickup_charge : 0;
-                            const other = typeof ship.other_charge === "number" ? ship.other_charge : 0;
-                            const gstPerc = typeof ship.gst_percentage === "number" ? ship.gst_percentage : 0;
-                            const totalBeforeGst = base + fuel + docket + handling + pickup + other;
-                            const gst = +(totalBeforeGst * gstPerc / 100).toFixed(2);
+                            const base =
+                              typeof ship.base_price === "number"
+                                ? ship.base_price
+                                : 0;
+                            const fuel =
+                              typeof ship.fuel_charge === "number"
+                                ? ship.fuel_charge
+                                : 0;
+                            const docket =
+                              typeof ship.docket_charge === "number"
+                                ? ship.docket_charge
+                                : 0;
+                            const handling =
+                              typeof ship.handling_charge === "number"
+                                ? ship.handling_charge
+                                : 0;
+                            const pickup =
+                              typeof ship.pickup_charge === "number"
+                                ? ship.pickup_charge
+                                : 0;
+                            const other =
+                              typeof ship.other_charge === "number"
+                                ? ship.other_charge
+                                : 0;
+                            const gstPerc =
+                              typeof ship.gst_percentage === "number"
+                                ? ship.gst_percentage
+                                : 0;
+                            const totalBeforeGst =
+                              base + fuel + docket + handling + pickup + other;
+                            const gst = +(
+                              (totalBeforeGst * gstPerc) /
+                              100
+                            ).toFixed(2);
                             const final = +(totalBeforeGst + gst).toFixed(2);
                             return (
                               <tr key={ship.id}>
-                                <td className="px-4 py-2 font-mono max-w-[120px] truncate">{ship.shipment_id || ship.id.slice(0, 8)}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{new Date(ship.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{base.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{fuel.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{docket.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{handling.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{pickup.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">₹{other.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[80px] truncate">{gstPerc}%</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[120px] truncate">₹{final.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                                <td className="px-4 py-2 max-w-[100px] truncate">{ship.invoice_status}</td>
+                                <td className="px-4 py-2 font-mono max-w-[120px] truncate">
+                                  {ship.shipment_id || ship.id.slice(0, 8)}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {new Date(ship.created_at).toLocaleDateString(
+                                    "en-IN",
+                                    { timeZone: "Asia/Kolkata" }
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {base.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {fuel.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {docket.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {handling.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {pickup.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  ₹
+                                  {other.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[80px] truncate">
+                                  {gstPerc}%
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {gst.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[120px] truncate">
+                                  ₹
+                                  {final.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </td>
+                                <td className="px-4 py-2 max-w-[100px] truncate">
+                                  {ship.invoice_status}
+                                </td>
                               </tr>
                             );
                           })
